@@ -319,9 +319,24 @@ body {
     background: #34495e;
     padding: 15px;
     border-radius: 5px;
-    margin-bottom: 20px;
     display: flex;
     gap: 20px;
+}
+
+.global-controls-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+}
+
+.global-controls-row .scale-selector {
+    flex: 0 0 auto;
+}
+
+.global-controls-row .effects {
+    flex: 1;
+    margin: 0;
 }
 
 .scale-selector select {
