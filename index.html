@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrumCircles - Musical Sequencer</title>
+    <link rel="stylesheet" href="public/styles.css">
+</head>
+<body>
+    <div class="groovebox-container">
+        <div class="groovebox">
+            <div class="transport">
+                <button id="playButton">Play</button>
+                <label>
+                    BPM: <input type="number" id="bpmControl" value="120" min="60" max="200">
+                </label>
+            </div>
+            <div class="tracks"></div>
+        </div>
+    </div>
+
+    <!-- Load Tone.js from CDN for Vercel deployment -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="public/groovebox.js"></script>
+</body>
+</html>

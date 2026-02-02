@@ -1,0 +1,1123 @@
+:root {
+    --neon-green: #00ff41;
+    --dark-bg: #0a0a0a;
+    --darker-grey: #1a1a1a;
+    --dark-grey: #2a2a2a;
+    --mid-grey: #404040;
+    --light-grey: #808080;
+    --grid-color: rgba(0, 255, 65, 0.1);
+    --terminal-glow: 0 0 10px rgba(255, 255, 255, 0.5);
+    --primary-blue: #2196F3;
+    --blue-glow: rgba(33, 150, 243, 0.3);
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+body {
+    background-color: var(--dark-bg);
+    background-image: 
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 20px 20px;
+    color: white;
+    font-family: 'Courier New', monospace;
+}
+
+.groovebox {
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid white;
+    box-shadow: var(--terminal-glow);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.transport {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.transport button {
+    padding: 10px 20px;
+    background: transparent;
+    border: 1px solid white;
+    color: var(--neon-green);
+    text-transform: uppercase;
+    font-family: 'Courier New', monospace;
+    box-shadow: var(--terminal-glow);
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.transport button:hover {
+    background: var(--dark-grey);
+    border-color: white;
+    color: white;
+    box-shadow: var(--terminal-glow);
+}
+
+.tracks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 20px;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.track {
+    flex: 1;
+    min-width: 300px;
+    max-width: calc(33.33% - 20px);
+    margin-bottom: 20px;
+}
+
+@media (max-width: 1200px) {
+    .track {
+        max-width: calc(50% - 20px);
+    }
+}
+
+@media (max-width: 768px) {
+    .track {
+        max-width: 100%;
+    }
+}
+
+.track {
+    width: 220px;
+    padding: 12px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    background: var(--darker-grey);
+    border: 1px solid white;
+    border-radius: 5px;
+}
+
+.track > * {
+    width: 100%;
+}
+
+.track h3 {
+    text-align: center;
+    margin: 5px 0;
+}
+
+.circular-sequencer {
+    width: 180px;
+    height: 180px;
+    margin: 10px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.circular-sequencer svg {
+    width: 100%;
+    height: 100%;
+}
+
+.sequencer-led {
+    fill: var(--dark-grey);
+    stroke: var(--neon-green);
+    stroke-width: 1;
+    filter: blur(0.5px);
+    transition: all 0.2s ease;
+}
+
+.sequencer-led.active {
+    fill: var(--neon-green);
+    filter: drop-shadow(0 0 4px var(--blue-glow));
+}
+
+.sequencer-led.playing {
+    stroke: var(--primary-blue);
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 6px var(--blue-glow));
+}
+
+.track-controls {
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.sequencer-controls {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    padding: 10px;
+}
+
+.sequencer-control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 10px;
+    gap: 10px;
+    background: var(--darker-grey);
+    border-radius: 4px;
+}
+
+.note-selection {
+    width: calc(100% - 20px);
+    aspect-ratio: 1;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    padding: 8px;
+    margin: 10px auto;
+    background: var(--darker-grey);
+    border: none;
+    border-radius: 0;
+}
+
+.synth-controls {
+    width: 100%;
+    max-width: 180px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.mixer {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    background: rgba(0, 20, 0, 0.9);
+    border-radius: 5px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    border: 1px solid white;
+    box-shadow: var(--terminal-glow);
+}
+
+.mixer-channel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    min-width: 80px;
+    position: relative;
+}
+
+.fader-container {
+    height: 150px;
+    width: 30px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vu-meter {
+    width: 30px;
+    height: 150px;
+    background: rgba(0, 20, 0, 0.5);
+    position: absolute;
+    border-radius: 3px;
+    overflow: hidden;
+    border: 1px solid white;
+}
+
+.vu-meter-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: var(--neon-green);
+    transition: height 0.05s;
+    box-shadow: var(--terminal-glow);
+}
+
+.fader {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 150px !important;
+    height: 30px !important;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    position: absolute;
+    background: transparent;
+    opacity: 0.3;
+    z-index: 2;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.fader:hover {
+    opacity: 0.6;
+}
+
+.mixer-channel button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 1px solid white;
+    background: var(--darker-grey);
+    color: var(--neon-green);
+    cursor: pointer;
+}
+
+.mixer-channel button.active {
+    background: var(--dark-grey);
+    color: var(--neon-green);
+    box-shadow: var(--terminal-glow);
+}
+
+.mixer-separator {
+    width: 2px;
+    height: 200px;
+    background: var(--mid-grey);
+    margin: 0 20px;
+}
+
+.effects {
+    margin-top: 20px;
+    display: flex;
+    gap: 20px;
+    background: #34495e;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.effects-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.parameter-control {
+    flex-direction: column;
+    padding: 8px;
+    gap: 5px;
+}
+
+.parameter-control label {
+    font-size: 0.8em;
+    white-space: nowrap;
+    display: block;
+}
+
+.parameter-value {
+    font-family: monospace;
+    font-size: 0.9em;
+    margin-top: 5px;
+}
+
+.scale-selector {
+    background: #34495e;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 20px;
+}
+
+.scale-selector select {
+    padding: 5px;
+    border-radius: 3px;
+    background: #2c3e50;
+    color: white;
+    border: 1px solid #95a5a6;
+}
+
+.pan-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.pan-container input {
+    width: 80%;
+}
+
+.channel-meter {
+    font-size: 0.8em;
+    text-align: center;
+    min-height: 20px;
+}
+
+/* Slider customization */
+input[type="range"] {
+    -webkit-appearance: none;
+    background: #2c3e50;
+    border-radius: 8px;
+    height: 4px;
+    accent-color: var(--neon-green);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    background: var(--primary-blue);
+    border: none;
+    border-radius: 50%;
+    margin-top: -6px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    background: var(--primary-blue);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+/* Control group styling */
+.control-group {
+    background: #34495e;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.control-group h4 {
+    margin: 0 0 10px 0;
+    color: #3498db;
+}
+
+/* Style the slider track to be transparent */
+.fader::-webkit-slider-runnable-track {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    height: 3px;
+}
+
+/* Style the slider thumb to be semi-transparent */
+.fader::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    background: rgba(40, 40, 40, 0.8);
+    border: 1px solid var(--neon-green);
+    border-radius: 50%;
+    margin-top: -6px;
+    cursor: pointer;
+}
+
+/* Firefox styles */
+.fader::-moz-range-track {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    height: 3px;
+}
+
+.fader::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    background: rgba(40, 40, 40, 0.8);
+    border: 1px solid var(--neon-green);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+}
+
+/* Add scanline effect */
+.groovebox::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15) 0px,
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 2px
+    );
+    pointer-events: none;
+}
+
+/* Add CRT flicker animation */
+@keyframes flicker {
+    0% { opacity: 0.97; }
+    5% { opacity: 0.95; }
+    10% { opacity: 0.97; }
+    15% { opacity: 0.95; }
+    20% { opacity: 0.97; }
+}
+
+.groovebox {
+    animation: flicker 5s infinite;
+}
+
+input[type="number"] {
+    background: transparent;
+    border: 1px solid var(--neon-green);
+    color: var(--neon-green);
+    font-family: 'Courier New', monospace;
+}
+
+.mixer-channel h4 {
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.sequencer-led {
+    fill: var(--dark-grey);
+    stroke: var(--neon-green);
+    stroke-width: 1;
+    transition: fill 0.1s ease;
+}
+
+.sequencer-led.active {
+    fill: var(--neon-green);
+    filter: drop-shadow(0 0 2px var(--neon-green));
+}
+
+.sequencer-led.playing {
+    stroke: white;
+    stroke-width: 2;
+    filter: drop-shadow(0 0 4px white);
+}
+
+.track-sequencer {
+    background: var(--darker-grey);
+    border: 1px solid white;
+    border-radius: 5px;
+    padding: 20px;
+    margin: 10px 0;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 20px;
+    align-items: center;
+}
+
+.sequencer-controls {
+    width 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    padding: 0px;
+}
+
+.sequencer-control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding: 5px;
+    gap: 5px;
+}
+
+.knob-controls {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(3, auto);
+    gap: 8px;
+    width: 100%;
+    padding: 0;
+}
+
+.knob-row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    gap: 10px;
+}
+
+.knob-container {
+    position: relative;
+    width: 60px;
+    height: 80px;
+    margin: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.knob-outer {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: var(--dark-grey);
+    border: 2px solid var(--mid-grey);
+    margin: 0 auto;
+}
+
+.knob-input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+.knob-indicator {
+    position: absolute;
+    width: 2px;
+    height: 20px;
+    background: var(--neon-green);
+    left: 50%;
+    top: 5px;
+    transform-origin: bottom center;
+    transform: rotate(-135deg);
+    box-shadow: 0 0 2px var(--neon-green);
+}
+
+.knob-surface {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 50%;
+    cursor: grab;
+    z-index: 1;
+}
+
+.knob-surface:active {
+    cursor: grabbing;
+}
+
+.knob-label {
+    text-align: center;
+    margin-top: 5px;
+    font-size: 10px;
+    color: var(--light-grey);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.value-display {
+    text-align: center;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--neon-green);
+    font-family: 'Courier New', monospace;
+}
+
+/* Synth parameter styles */
+.param-control {
+    width: 100%;
+    max-width: 180px;
+    margin: 5px auto;
+    text-align: center;
+}
+
+.param-control input[type="range"] {
+    width: 100%;
+    margin: 5px 0;
+}
+
+.param-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: #00ff00;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.param-control label {
+    color: #00ff00;
+    font-size: 12px;
+    width: 80px;
+}
+
+.logic-controls {
+    margin: 10px 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+
+.logic-operator {
+    width: 80px;
+    padding: 4px 8px;
+    text-align: center;
+    background: transparent;
+    color: white;
+    border: 1px solid white;
+    border-radius: 4px;
+    font-family: var(--font-family);
+}
+
+.logic-operator option {
+    background: var(--darker-grey);
+    color: white;
+    font-family: var(--font-family);
+}
+
+.note-selection {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    width: 100%;
+    max-width: 160px;
+    aspect-ratio: 1;
+    padding: 8px;
+    margin: 10px auto;
+    background: var(--darker-grey);
+    border: 1px solid var(white);
+    border-radius: 8px;
+}
+
+.note-button {
+    aspect-ratio: 1;
+    width: 100%;
+    padding: 0;
+    font-size: 0.65em;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--dark-grey);
+    border: 1px solid white;
+    color: var(--neon-green);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.note-button.selected {
+    background: var(--primary-blue);
+    color: white;
+    border-color: var(--primary-blue);
+}
+
+/* Track layout adjustments */
+.track {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: var(--darker-grey);
+    border: 1px solid white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.track > * {
+    width: 100%;
+}
+
+.track h3 {
+    text-align: center;
+    margin: 5px 0;
+}
+
+.circular-sequencer {
+    margin: 0 auto;
+    width: 180px;
+    height: 180px;
+}
+
+.track-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.note-selection {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 2px;
+    width: 100%;
+    aspect-ratio: 1;
+    margin: 10px auto;
+}
+
+.synth-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+.param-control {
+    width: 100%;
+    text-align: center;
+}
+
+.groovebox-container {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-height: 100vh;
+    padding: 20px;
+    gap: 20px;
+    background: #111;
+    color: #00ff00;
+}
+
+.sequencer-controls-section,
+.visual-section,
+.synth-controls-section {
+    border: 1px solid #00ff00;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.tracks-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    overflow-x: auto;
+    padding: 10px;
+}
+
+.track-sequencer-controls,
+.track-synth-controls {
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid #00ff00;
+    border-radius: 4px;
+}
+
+h3 {
+    color: #00ff00;
+    text-transform: uppercase;
+    margin: 5px 0;
+    font-size: 12px;
+}
+
+.logic-controls {
+    margin: 5px 0;
+}
+
+.logic-operator {
+    background: transparent;
+    color: #00ff00;
+    border: 1px solid #00ff00;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-family: var(--font-family);
+}
+
+.logic-operator option {
+    background: #111;
+}
+
+.compressor-controls {
+    background: #2a2a2a;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.comp-control {
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0;
+    gap: 0.5rem;
+}
+
+.comp-control label {
+    width: 80px;
+    font-size: 0.8rem;
+}
+
+.comp-control input[type="range"] {
+    flex: 1;
+}
+
+.comp-control .value-display {
+    width: 60px;
+    text-align: right;
+    font-size: 0.8rem;
+}
+
+/* Add horizontal scrollbar styles */
+.tracks::-webkit-scrollbar {
+    height: 8px;
+}
+
+.tracks::-webkit-scrollbar-track {
+    background: var(--darker-grey);
+}
+
+.tracks::-webkit-scrollbar-thumb {
+    background: var(--neon-green);
+    border-radius: 4px;
+}
+
+/* Add vertical scrollbar styles for tracks */
+.track::-webkit-scrollbar {
+    width: 8px;
+}
+
+.track::-webkit-scrollbar-track {
+    background: var(--darker-grey);
+}
+
+.track::-webkit-scrollbar-thumb {
+    background: var(--neon-green);
+    border-radius: 4px;
+}
+
+/* Update all text elements */
+h3,
+.track h3,
+.mixer-channel h4,
+.knob-label,
+.value-display,
+.param-control label,
+.logic-operator,
+.note-button,
+.transport button,
+.control-group h4,
+.channel-meter,
+.parameter-value,
+.comp-control label {
+    color: white;
+}
+
+/* Keep sequencer LEDs and specific elements green */
+.sequencer-led {
+    fill: var(--dark-grey);
+    stroke: var(--neon-green);
+}
+
+.sequencer-led.active {
+    fill: var(--neon-green);
+    filter: drop-shadow(0 0 2px var(--neon-green));
+}
+
+/* Update any hover states */
+.transport button:hover {
+    background: var(--dark-grey);
+    border-color: white;
+    color: white;
+    box-shadow: var(--terminal-glow);
+}
+
+/* Update select options */
+.logic-operator option,
+.scale-selector select {
+    background: var(--darker-grey);
+    color: white;
+}
+
+/* Update font family globally */
+:root {
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+body, 
+button,
+select,
+input {
+    font-family: var(--font-family);
+}
+
+/* Add these new styles */
+.help-icon {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    pointer-events: auto !important;
+}
+
+.help-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.help-icon.active {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Ensure help button stays clickable */
+.help-mode .help-icon {
+    pointer-events: auto !important;
+}
+
+.help-tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.95);
+    border: 2px solid var(--neon-green);
+    color: white;
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-size: 14px;
+    max-width: 300px;
+    z-index: 1000;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    line-height: 1.4;
+    text-align: left;
+}
+
+.help-mode .help-active {
+    outline: 2px solid var(--neon-green);
+    box-shadow: 0 0 10px var(--neon-green);
+    cursor: help;
+    position: relative;
+    z-index: 1;
+    pointer-events: auto !important;
+}
+
+.help-mode * {
+    pointer-events: none;
+}
+
+.help-active {
+    pointer-events: auto !important;
+}
+
+/* Make sure child elements don't interfere with hover detection */
+.help-mode .help-active * {
+    pointer-events: none;
+}
+
+/* Ensure knob containers capture hovers properly */
+.help-mode .knob-container {
+    pointer-events: auto !important;
+    cursor: help;
+}
+
+/* Ensure the knob and its parts don't interfere with hover detection */
+.help-mode .knob-container * {
+    pointer-events: none;
+}
+
+/* Add a larger hit area for the knobs */
+.help-mode .knob-container.help-active {
+    padding: 5px;
+    margin: -5px;
+}
+
+/* Make the hover highlight more visible */
+.help-mode .knob-container.help-active {
+    outline: 2px solid var(--neon-green);
+    box-shadow: 0 0 10px var(--neon-green);
+    border-radius: 5px;
+}
+
+/* Remove previous knob-specific help styles */
+.help-mode .knob-container.help-active {
+    outline: none;
+    box-shadow: none;
+    padding: 0;
+    margin: 10px;
+}
+
+/* Add these new styles */
+.help-mode .knob-container {
+    position: relative;
+    pointer-events: auto !important;
+}
+
+.help-mode .knob-container * {
+    pointer-events: none;
+}
+
+/* Make the entire knob area clickable */
+.help-mode .knob-surface {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    cursor: help;
+}
+
+/* Ensure help button stays visible */
+.help-mode #helpToggle {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Add to your stylesheet */
+.help-mode .track,
+.help-mode .mixer,
+.help-mode .controls-container,
+.help-mode .note-selection,
+.help-mode .knob-container,
+.help-mode .fader-container,
+.help-mode .pan-container,
+.help-mode .circular-sequencer,
+.help-mode .effects-controls,
+.help-mode .logic-operator,
+.help-mode .synth-controls,
+.help-mode .scale-selector,
+.help-mode .compressor-controls,
+.help-mode .comp-control {
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.help-mode button:not(#helpToggle),
+.help-mode input,
+.help-mode select {
+    pointer-events: none;
+}
+
+.help-icon {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    pointer-events: auto !important;
+}
+
+.help-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.help-icon.active {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
