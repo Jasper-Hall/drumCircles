@@ -436,8 +436,8 @@ class Groovebox {
         // Create transport controls (already exists in HTML)
         this.setupTransportControls();
 
-        // Create scale selector
-        this.createScaleSelector();
+        // Scale selector is now created in HTML, skip auto-creation
+        // this.createScaleSelector();
 
         // Create tracks container
         const tracksContainer = document.querySelector('.tracks');
