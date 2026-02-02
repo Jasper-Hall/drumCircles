@@ -72,6 +72,16 @@ body {
     min-width: 300px;
     max-width: calc(33.33% - 20px);
     margin-bottom: 20px;
+    width: 220px;
+    padding: 12px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    background: var(--darker-grey);
+    border: 1px solid white;
+    border-radius: 5px;
 }
 
 @media (max-width: 1200px) {
@@ -84,19 +94,6 @@ body {
     .track {
         max-width: 100%;
     }
-}
-
-.track {
-    width: 220px;
-    padding: 12px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    background: var(--darker-grey);
-    border: 1px solid white;
-    border-radius: 5px;
 }
 
 .track > * {
