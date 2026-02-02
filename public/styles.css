@@ -69,8 +69,8 @@ body {
 
 .track {
     flex: 1;
-    min-width: 300px;
-    max-width: calc(33.33% - 20px);
+    min-width: 200px;
+    max-width: calc(16.66% - 20px);
     margin-bottom: 20px;
     width: 220px;
     padding: 12px;
