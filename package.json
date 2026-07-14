@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A web-based musical sequencer with circular Euclidean rhythms",
   "scripts": {
-    "dev": "npx serve public",
+    "dev": "npx serve .",
     "build": "echo 'No build step required for static site'"
   },
   "keywords": [

@@ -36,10 +36,19 @@ class Groovebox {
 
         this.setupEventListeners();
 
-        // Initialize WebSocket
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        this.ws = new WebSocket(`${protocol}//${window.location.hostname}:${window.location.port}`);
-        this.initializeWebSocketHandlers();
+        // Initialize WebSocket (multiplayer is opt-in: local development only,
+        // production static hosting has no WebSocket server)
+        this.ws = null;
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                this.ws = new WebSocket(`${protocol}//${window.location.hostname}:${window.location.port}`);
+                this.initializeWebSocketHandlers();
+            } catch (error) {
+                console.warn('WebSocket unavailable, running in single-player mode:', error);
+                this.ws = null;
+            }
+        }
 
         this.currentTrack = 'pluck'; // or whatever default track you want
         this.selectedNotes = new Set();
@@ -59,14 +68,15 @@ class Groovebox {
             'knob-controls': `Euclidean Rhythm Controls:
                 - Steps: Set sequence length (1-16)
                 - Pulses: Set number of active beats (0-16)
-                - Rotation: Shift pattern left/right (0-31)
+                - Rotation: Shift pattern left/right 
+                - Distribution: Change pulse spacing (Center: even, Left: front-bias, Right: end-bias)
                 - Probability: Chance of triggers (0-100%)
                 
                 Outer ring controls the first pattern
                 Inner ring controls the second pattern`,
             
             // Logic and Note Selection
-            'logic-operator': 'How the two patterns combine:\nAND = both must trigger\nOR = either can trigger\nXOR = only one can trigger',
+            'pattern-sequence-controls': 'Sequential Pattern Mode: Patterns will play one after another instead of being combined',
             
             // Mixer controls
             'fader-container[data-channel="master"]': 'Master Volume Control - Adjusts the overall volume of all tracks',
@@ -107,6 +117,7 @@ class Groovebox {
     }
 
     initializeWebSocketHandlers() {
+        if (!this.ws) return;
         this.ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -119,7 +130,10 @@ class Groovebox {
                         this.syncState(data.state);
                         break;
                     case 'KNOB_CHANGE':
-                        this.updateTrackControl(data.trackId, data.parameter, data.value);
+                        // Check if the message is for the current client to avoid loopback
+                        if (data.clientId !== this.clientId) {
+                             this.handleKnobChange(data.payload);
+                        }
                         break;
                     case 'LOGIC_CHANGE':
                         this.updateTrackControl(data.trackId, 'logicOperator', data.operator);
@@ -356,6 +370,11 @@ class Groovebox {
         const playButton = document.getElementById('playButton');
         const bpmControl = document.getElementById('bpmControl');
 
+        if (!playButton) {
+            console.warn('#playButton not found; transport controls not initialized');
+            return;
+        }
+
         // Remove existing listeners if any
         const newPlayButton = playButton.cloneNode(true);
         playButton.parentNode.replaceChild(newPlayButton, playButton);
@@ -379,9 +398,11 @@ class Groovebox {
         });
 
         // Set up BPM control
-        bpmControl.addEventListener('input', (e) => {
-            Tone.Transport.bpm.value = parseFloat(e.target.value);
-        });
+        if (bpmControl) {
+            bpmControl.addEventListener('input', (e) => {
+                Tone.Transport.bpm.value = parseFloat(e.target.value);
+            });
+        }
     }
 
     repeat(time) {
@@ -391,8 +412,9 @@ class Groovebox {
         if (time === this.lastStepTime) return;
         this.lastStepTime = time;
         
-        // Get current step
-        const step = this.currentStep % this.steps;
+        // Get current step - use a very large number to prevent resetting too early
+        // This allows us to count through all steps of both patterns
+        const step = this.currentStep;
         
         // Trigger synths for each track if step is active
         Object.entries(this.synths).forEach(([name, track]) => {
@@ -409,8 +431,9 @@ class Groovebox {
             }
         });
 
-        // Advance to next step
-        this.currentStep = (this.currentStep + 1) % this.steps;
+        // Advance to next step without constraining to this.steps
+        // Each track will handle its own step counting internally
+        this.currentStep += 1;
     }
 
     triggerSynth(name, track, time) {
@@ -433,11 +456,11 @@ class Groovebox {
     }
 
     createUI() {
-        // Create transport controls (already exists in HTML)
-        this.setupTransportControls();
+        // Transport controls (#playButton, #bpmControl) already exist in the HTML
+        // and are wired once in setupTransport() -> setupTransportControls().
 
-        // Scale selector is now created in HTML, skip auto-creation
-        // this.createScaleSelector();
+        // Create scale selector
+        this.createScaleSelector();
 
         // Create tracks container
         const tracksContainer = document.querySelector('.tracks');
@@ -579,58 +602,58 @@ class Groovebox {
     }
 
     setupEventListeners() {
-        Object.values(this.synths).forEach(track => {
-            // Logic operator
-            const logicSelect = track.controlsContainer.querySelector('.logic-operator');
-            logicSelect.addEventListener('change', (e) => {
-                track.logicOperator = e.target.value;
+        // Remove the specific knob listener setup from here
+        // Object.values(this.synths).forEach(track => {
+        //     // Knobs - THIS SECTION IS REMOVED
+        //     track.controlsContainer.querySelectorAll('.knob-input').forEach(knob => {
+        //         knob.addEventListener('input', (e) => {
+        //             // ... removed listener code ...
+        //         });
+        //     });
+        // });
 
-                // Use the new broadcast method
-                this.broadcastStateChange('LOGIC_CHANGE', {
-                    trackId: track.name,
-                    operator: track.logicOperator
-                });
-            });
-
-            // Knobs
-            track.controlsContainer.querySelectorAll('.knob-input').forEach(knob => {
-                knob.addEventListener('input', (e) => {
-                    const value = parseInt(e.target.value);
-                    const id = e.target.id;
-                    const type = id.split('-')[0];
-                    const param = id.split('-')[1];
-
-                    if (type === 'outer') {
-                        track.outerSequencer.updateParams(
-                            param === 'steps' ? value : track.outerSequencer.steps,
-                            param === 'pulses' ? value : track.outerSequencer.pulses,
-                            param === 'rotation' ? value : track.outerSequencer.rotation,
-                            param === 'probability' ? value : track.outerSequencer.probability
-                        );
-                    } else {
-                        track.innerSequencer.updateParams(
-                            param === 'steps' ? value : track.innerSequencer.steps,
-                            param === 'pulses' ? value : track.innerSequencer.pulses,
-                            param === 'rotation' ? value : track.innerSequencer.rotation,
-                            param === 'probability' ? value : track.innerSequencer.probability
-                        );
-                    }
-
-                    track.updateVisualization(this.currentStep);
-
-                    // Use the new broadcast method
-                    this.broadcastStateChange('KNOB_CHANGE', {
-                        trackId: track.name,
-                        parameter: id,
-                        value: value
-                    });
-                });
-            });
-        });
-
-        // Setup parameter controls
+        // Keep the listeners for other controls
         this.setupSynthParameterListeners();
         this.setupEffectsEventListeners();
+        // Wire up mixer faders/pan/mute/solo (UI was created in createUI())
+        this.setupMixerEventListeners();
+        // Add listeners for scale/root note changes
+        this.setupScaleListeners();
+        // NOTE: transport listeners are wired once in setupTransport() ->
+        // setupTransportControls(); the help system is set up once at the end
+        // of the constructor (after helpContent exists). Do not add them here,
+        // it duplicates listeners and creates a second #helpToggle button.
+    }
+
+    setupScaleListeners() {
+        // Example: Add listeners for scale and root note dropdowns
+        console.log("Setting up scale listeners...");
+        const scaleSelect = document.getElementById('scaleSelect');
+        const rootNoteSelect = document.getElementById('rootNote');
+
+        if (scaleSelect) {
+            scaleSelect.addEventListener('change', (e) => {
+                this.currentScale = e.target.value;
+                this.updateAllNoteSelections(); // Update note buttons based on new scale
+                this.broadcastStateChange('SCALE_CHANGE', { scale: this.currentScale });
+            });
+        }
+        if (rootNoteSelect) {
+            rootNoteSelect.addEventListener('change', (e) => {
+                // Assuming root note change requires updating note selections
+                this.updateAllNoteSelections(); 
+                this.broadcastStateChange('ROOT_NOTE_CHANGE', { rootNote: e.target.value });
+            });
+        }
+    }
+
+    // Update every track's note-selection grid (after scale/root note changes)
+    updateAllNoteSelections() {
+        Object.values(this.synths).forEach(track => {
+            if (track.updateNoteSelection) {
+                track.updateNoteSelection();
+            }
+        });
     }
 
     updateNoteSelections() {
@@ -655,7 +678,7 @@ class Groovebox {
                 }
 
                 // Broadcast change
-                if (this.ws) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(JSON.stringify({
                         type: 'MIXER_CHANGE',
                         channelId: channel,
@@ -676,7 +699,7 @@ class Groovebox {
                 }
 
                 // Broadcast change
-                if (this.ws) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(JSON.stringify({
                         type: 'MIXER_CHANGE',
                         channelId: channel,
@@ -696,7 +719,7 @@ class Groovebox {
                 e.target.classList.toggle('active');
 
                 // Broadcast change
-                if (this.ws) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                     this.ws.send(JSON.stringify({
                         type: 'MIXER_CHANGE',
                         channelId: channel,
@@ -843,28 +866,17 @@ class Groovebox {
     }
 
     setupSequencerEventListeners() {
+        // Remove or comment out the conflicting knob listener setup
+        /*
         const knobs = document.querySelectorAll('.knob-container input[type="range"]');
         knobs.forEach(knob => {
             knob.addEventListener('input', (e) => {
-                const value = parseInt(e.target.value);
-                const id = e.target.id;
-                const track = this.synths[this.currentTrack];
-
-                // Update local state
-                if (id.startsWith('outer-')) {
-                    track.outerSequencer[id.split('-')[1]] = value;
-                } else if (id.startsWith('inner-')) {
-                    track.innerSequencer[id.split('-')[1]] = value;
-                }
-
-                // Broadcast change
-                this.broadcastStateChange('KNOB_CHANGE', {
-                    trackId: track.name,
-                    parameter: id,
-                    value: value
-                });
+                // ... removed conflicting listener code ...
             });
         });
+        */
+       console.log("Groovebox.setupSequencerEventListeners called, but knob listeners are now handled by Track.createKnob.");
+       // Keep any other listeners this method might be responsible for, if any.
     }
 
     setupVUMeters() {
@@ -928,18 +940,10 @@ class Groovebox {
                         control === 'steps' ? value : sequencer.steps,
                         control === 'pulses' ? value : sequencer.pulses,
                         control === 'rotation' ? value : sequencer.rotation,
-                        control === 'probability' ? value : sequencer.probability
+                        control === 'probability' ? value : sequencer.probability,
+                        control === 'distribution' ? value : sequencer.distribution
                     );
                 }
-            }
-        }
-        
-        // Handle logic operator
-        if (param === 'logicOperator') {
-            const logicSelect = track.controlsContainer.querySelector('.logic-operator');
-            if (logicSelect) {
-                logicSelect.value = value;
-                track.logicOperator = value;
             }
         }
         
@@ -1036,7 +1040,8 @@ class Groovebox {
                         trackState.outerSequencer.steps || track.outerSequencer.steps,
                         trackState.outerSequencer.pulses || track.outerSequencer.pulses,
                         trackState.outerSequencer.rotation || track.outerSequencer.rotation,
-                        trackState.outerSequencer.probability || track.outerSequencer.probability
+                        trackState.outerSequencer.probability || track.outerSequencer.probability,
+                        trackState.outerSequencer.distribution || track.outerSequencer.distribution
                     );
 
                     // Update UI knobs
@@ -1102,6 +1107,23 @@ class Groovebox {
         }
     }
 
+    handleRemoteTransportChange(data) {
+        // Apply transport changes broadcast by another client
+        if (typeof data.bpm === 'number' && !Number.isNaN(data.bpm)) {
+            Tone.Transport.bpm.value = data.bpm;
+            const bpmControl = document.getElementById('bpmControl');
+            if (bpmControl) bpmControl.value = data.bpm;
+        }
+        if (typeof data.isPlaying === 'boolean') {
+            this.isPlaying = data.isPlaying;
+            const playButton = document.getElementById('playButton');
+            if (playButton) {
+                playButton.textContent = data.isPlaying ? 'Stop' : 'Play';
+                playButton.classList.toggle('active', data.isPlaying);
+            }
+        }
+    }
+
     createHelpTooltip() {
         const tooltip = document.createElement('div');
         tooltip.className = 'help-tooltip';
@@ -1110,6 +1132,9 @@ class Groovebox {
     }
 
     setupHelpSystem() {
+        // Idempotency guard: only ever create one help toggle button
+        if (document.getElementById('helpToggle')) return;
+
         // Create help toggle button with fixed positioning
         const helpToggle = document.createElement('button');
         helpToggle.id = 'helpToggle';
@@ -1133,7 +1158,7 @@ class Groovebox {
                 .mixer-channel button:not(#helpToggle):not(.help-duplicate),
                 .circular-sequencer:not(.help-duplicate),
                 .effects-controls:not(.help-duplicate),
-                .logic-operator:not(.help-duplicate),
+                .pattern-sequence-controls:not(.help-duplicate),
                 .synth-controls:not(.help-duplicate),
                 .scale-selector:not(.help-duplicate),
                 .compressor-controls:not(.help-duplicate),
@@ -1250,7 +1275,8 @@ class Groovebox {
     }
 
     broadcastStateChange(type, data) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        if (!this.ws) return; // Multiplayer disabled (no WebSocket server)
+        if (this.ws.readyState === WebSocket.OPEN) {
             const message = JSON.stringify({
                 type: type,
                 ...data
@@ -1358,120 +1384,211 @@ class Groovebox {
         };
         return effectParamMap[effect]?.[parameter];
     }
+
+    handleKnobChange(data) {
+        const { trackId, parameter, value } = data;
+        const track = this.synths[trackId];
+        
+        if (track) {
+            const [type, param] = parameter.split('-');
+            
+            if (type === 'outer' || type === 'inner') {
+                 const sequencer = type === 'outer' ? track.outerSequencer : track.innerSequencer;
+                 sequencer.updateParams(
+                    param === 'steps' ? value : sequencer.steps,
+                    param === 'pulses' ? value : sequencer.pulses,
+                    param === 'rotation' ? value : sequencer.rotation,
+                    param === 'probability' ? value : sequencer.probability,
+                    param === 'distribution' ? value : sequencer.distribution
+                );
+            }
+            
+            track.updateVisualization(this.currentStep);
+
+            // Update UI (scoped lookup: knob ids repeat across tracks)
+            const knob = track.controlsContainer
+                ? track.controlsContainer.querySelector(`#${parameter}`)
+                : null;
+            if (knob) {
+                knob.value = value;
+                
+                // Also update the display
+                const display = knob.closest('.knob-container').querySelector('.value-display');
+                if (display) {
+                    display.textContent = value;
+                }
+                
+                // Update knob indicator
+                const indicator = knob.closest('.knob-container').querySelector('.knob-indicator');
+                if (indicator) {
+                    const min = parseInt(knob.min);
+                    const max = parseInt(knob.max);
+                    const rotation = (value - min) / (max - min) * 270 - 135;
+                    indicator.style.transform = `rotate(${rotation}deg)`;
+                }
+            }
+        }
+    }
 }
 
 class EuclideanSequencer {
-    constructor(steps = 8, pulses = 4, rotation = 0) {
-        this.steps = Math.min(steps, 16);
-        this.pulses = Math.min(pulses, this.steps);
+    constructor(steps = 16, pulses = 0, rotation = 0, probability = 100, distribution = 50) {
+        this.steps = steps;
+        this.pulses = pulses;
         this.rotation = rotation;
-        this.probability = 100; // Default to 100% probability
+        this.probability = probability;
+        this.distribution = distribution;
         this.pattern = [];
         this.generatePattern();
     }
 
     generatePattern() {
-        if (this.steps === 0 || this.pulses === 0) {
-            this.pattern = Array(this.steps).fill(false);
-            return;
-        }
-
-        // Bjorklund's algorithm implementation
-        let pattern = Array(this.steps).fill(false);
-        let counts = [];
-        let remainders = [];
-        let divisor = this.steps - this.pulses;
-        let level = 0;
-
-        let remaindersStack = [this.pulses];
-        let countsStack = [];
-
-        while (true) {
-            countsStack.push(Math.floor(divisor / remaindersStack[level]));
-            remaindersStack.push(divisor % remaindersStack[level]);
-            divisor = remaindersStack[level];
-            level++;
-            if (remaindersStack[level] <= 1) {
-                break;
-            }
-        }
-        remaindersStack.push(divisor);
-
-        const build = (level) => {
-            if (level === -1) {
-                return [0];
-            }
-            if (level === -2) {
-                return [1];
-            }
-            let sequence = [];
-            const count = countsStack[level];
-            const remainder = remaindersStack[level];
-            const previousSequence = build(level - 1);
-            for (let i = 0; i < count; i++) {
-                sequence = sequence.concat(previousSequence);
-            }
-            if (remainder !== 0) {
-                sequence = sequence.concat(build(level - 2));
-            }
-            return sequence;
-        };
-
-        let patternSequence = build(level - 1);
-        while (patternSequence.length < this.steps) {
-            patternSequence = patternSequence.concat(patternSequence);
-        }
-        patternSequence = patternSequence.slice(0, this.steps);
-
-        // Apply rotation
-        if (this.rotation !== 0) {
-            const rotateAmount = this.rotation % this.steps;
-            patternSequence = [...patternSequence.slice(rotateAmount), ...patternSequence.slice(0, rotateAmount)];
-        }
-        this.pattern = patternSequence.map(step => step === 1);
+        let basePattern = this.bjorklund(this.steps, this.pulses);
+        // Apply distribution modification
+        this.pattern = this.applyDistribution(basePattern); // Call applyDistribution
     }
 
-    static combinePatterns(pattern1, pattern2, operator = 'AND') {
-        const maxLength = Math.max(pattern1.length, pattern2.length);
-        const result = Array(maxLength).fill(false);
+    // --- Revised applyDistribution method ---
+    applyDistribution(pattern) {
+        const steps = this.steps;
+        const pulses = this.pulses;
+        const distributionValue = this.distribution;
 
-        for (let i = 0; i < maxLength; i++) {
-            const a = pattern1[i % pattern1.length];
-            const b = pattern2[i % pattern2.length];
+        // Edge cases: No change needed
+        if (distributionValue === 50 || pulses <= 0 || pulses >= steps) {
+            return pattern;
+        }
 
-            switch (operator.toUpperCase()) {
-                case 'AND':
-                    result[i] = a && b;
-                    break;
-                case 'OR':
-                    result[i] = a || b;
-                    break;
-                case 'XOR':
-                    result[i] = a !== b;
-                    break;
-                default:
-                    result[i] = a && b;
+        // Create a new empty pattern
+        const newPattern = new Array(steps).fill(false);
+        
+        // Find positions of active pulses in the original Euclidean pattern
+        const activePulsePositions = [];
+        for (let i = 0; i < steps; i++) {
+            if (pattern[i]) {
+                activePulsePositions.push(i);
             }
         }
 
-        return result;
+        // Target positions for each distribution extreme
+        const leftTargetPositions = Array.from({length: pulses}, (_, i) => i); // [0,1,2,...]
+        const rightTargetPositions = Array.from({length: pulses}, (_, i) => steps - pulses + i); // [steps-pulses, ...]
+        
+        // Calculate blend factor (0 = pure euclidean, 1 = pure target)
+        const blendFactor = Math.abs(distributionValue - 50) / 50;
+        const useLeftTarget = distributionValue < 50;
+        
+        // For each pulse, interpolate between its euclidean position and its target position
+        for (let i = 0; i < activePulsePositions.length; i++) {
+            const euclideanPos = activePulsePositions[i];
+            const targetPos = useLeftTarget ? leftTargetPositions[i] : rightTargetPositions[i];
+            
+            // Linear interpolation between euclidean and target position
+            // As blendFactor goes from 0 to 1, we move from euclidean to target
+            let newPos = Math.round(euclideanPos * (1 - blendFactor) + targetPos * blendFactor);
+            
+            // Ensure the position is within bounds
+            newPos = Math.min(Math.max(0, newPos), steps - 1);
+            
+            // Handle position conflicts by shifting
+            while (newPattern[newPos]) {
+                // If we're moving left, try the next position to the right
+                // If we're moving right, try the next position to the left
+                if (useLeftTarget) {
+                    newPos = (newPos + 1) % steps;
+                } else {
+                    newPos = (newPos - 1 + steps) % steps;
+                }
+            }
+            
+            // Set the pulse at its new position
+            newPattern[newPos] = true;
+        }
+        
+        return newPattern;
+    }
+    // --- End revised applyDistribution method ---
+
+    // Revised bjorklund method to calculate pattern starting from step 0
+    bjorklund(steps, pulses) {
+        if (pulses <= 0) return new Array(steps).fill(false);
+        if (pulses >= steps) return new Array(steps).fill(true);
+
+        // Initialize pattern array with all false
+        const pattern = new Array(steps).fill(false);
+
+        // Normal Euclidean algorithm, but with a consistent starting point
+        if (pulses > 0) {
+            // This ensures the pattern calculation begins at step 0
+            let positions = Array(steps).fill(0).map((_, i) => i); // [0, 1, 2, ...]
+            
+            // Calculate the step size for even distribution
+            let stepSize = steps / pulses;
+            
+            // Place pulses at positions determined by the step size
+            for (let i = 0; i < pulses; i++) {
+                let pos = Math.floor(i * stepSize);
+                pattern[pos] = true;
+            }
+            
+            // Optional: Adjustment to make patterns more "canonical" for specific cases
+            // This helps ensure the first pulse is at position 0 for common patterns
+            if (pulses === 2 && steps === 5) {
+                pattern.fill(false);
+                pattern[0] = true;
+                pattern[3] = true;
+            } else if (pulses === 3 && steps === 8) {
+                pattern.fill(false);
+                pattern[0] = true;
+                pattern[3] = true;
+                pattern[6] = true;
+            }
+        }
+        
+        return pattern;
     }
 
     getStep(step) {
-        const isActive = this.pattern[step % this.steps];
-        // Only check probability if the step is active
-        if (isActive) {
-            return Math.random() * 100 < this.probability;
+        // Rotate the step counter-clockwise (opposite of the visual rotation)
+        const rotatedStep = (step - this.rotation + this.steps) % this.steps;
+        
+        // Apply probability
+        if (Math.random() * 100 > this.probability) {
+            return false;
         }
-        return false;
+        
+        // Return the pattern value at the rotated position
+        return this.pattern && this.pattern.length > rotatedStep ? this.pattern[rotatedStep] : false;
     }
 
-    updateParams(steps, pulses, rotation, probability = this.probability) {
-        this.steps = Math.min(steps, 16);
-        this.pulses = Math.min(pulses, this.steps);
-        this.rotation = rotation;
-        this.probability = probability;
-        this.generatePattern();
+    updateParams(steps, pulses, rotation, probability = this.probability, distribution = this.distribution) {
+        const oldSteps = this.steps;
+        const oldRotation = this.rotation;
+        const stepsChanged = this.steps !== steps;
+        const pulsesChanged = this.pulses !== pulses;
+        const distributionChanged = this.distribution !== distribution; // Check if distribution changed
+
+        // 1. Update steps first
+        this.steps = Math.min(Math.max(1, steps), 16);
+
+        // 2. Update rotation, clamping it based on the NEW steps value
+        // Use modulo to wrap rotation within the bounds [0, steps-1]
+        this.rotation = (rotation % this.steps + this.steps) % this.steps;
+
+        // 3. Ensure pulses is never greater than the NEW steps
+        this.pulses = Math.min(Math.max(0, pulses), this.steps);
+
+        // 4. Update probability and distribution
+        this.probability = Math.min(Math.max(0, probability), 100);
+        this.distribution = Math.min(Math.max(0, distribution), 100);
+
+        // Regenerate pattern if steps, pulses, or distribution changed
+        if (stepsChanged || pulsesChanged || distributionChanged) {
+             this.generatePattern();
+        }
+        // Note: Rotation and Probability changes don't require regenerating the base pattern
+        // Return true if rotation was clamped by the steps change
+        return stepsChanged && oldRotation >= this.steps;
     }
 }
 
@@ -1482,12 +1599,11 @@ class Track {
         this.params = params;
         this.groovebox = grooveboxInstance;
 
-        // Create two euclidean sequencers with 0 pulses initially and 16 steps each
-        this.outerSequencer = new EuclideanSequencer(16, 0, 0);
-        this.innerSequencer = new EuclideanSequencer(16, 0, 0);
+        // Create two euclidean sequencers with character initialized to 50 (center position)
+        this.outerSequencer = new EuclideanSequencer(16, 0, 0, 100, 50);
+        this.innerSequencer = new EuclideanSequencer(16, 0, 0, 100, 50);
 
         // Sequencer settings
-        this.logicOperator = 'AND';
         this.selectedNotes = new Set();
         this.currentNoteIndex = 0;
         this.octaveOffset = 0;  // -/+ octave range
@@ -1556,46 +1672,133 @@ class Track {
     }
 
     updateVisualization(currentStep) {
-        // Update rings using their individual step counters
-        this.updateRingLEDs(this.outerRing, this.outerSequencer, this.outerStep);
-        this.updateRingLEDs(this.innerRing, this.innerSequencer, this.innerStep);
+        // Calculate the total length of both patterns and cycle position
+        const pattern1Length = this.outerSequencer.steps;
+        const pattern2Length = this.innerSequencer.steps;
+        // Prevent division by zero if both lengths are 0
+        const totalPatternLength = (pattern1Length + pattern2Length) > 0 ? (pattern1Length + pattern2Length) : 1;
+        const cyclePosition = currentStep % totalPatternLength;
+        const activePattern = (pattern1Length > 0 && cyclePosition < pattern1Length) ? 0 : 1; // Default to inner if outer has 0 steps
+
+        let currentOuterStep = -1; // Default to inactive
+        let currentInnerStep = -1; // Default to inactive
+
+        // Determine the current step for the *active* pattern
+        if (activePattern === 0 && pattern1Length > 0) {
+            currentOuterStep = cyclePosition;
+        } else if (activePattern === 1 && pattern2Length > 0) {
+            // Ensure inner step calculation is correct even if pattern1Length is 0
+            currentInnerStep = cyclePosition - pattern1Length;
+        }
+
+        // Store the calculated steps (optional, might not be needed elsewhere)
+        this.outerStep = currentOuterStep;
+        this.innerStep = currentInnerStep;
+
+        // Update LED displays, passing -1 for the inactive ring's current step
+        this.updateRingLEDs(this.outerRing, this.outerSequencer, currentOuterStep);
+        this.updateRingLEDs(this.innerRing, this.innerSequencer, currentInnerStep);
+
+        // Update pattern indicator consistently here
+        this.updateActivePatternIndicator(activePattern);
     }
 
     updateRingLEDs(ring, sequencer, currentStep) {
+        if (!ring || !sequencer) return;
+
         const leds = ring.getElementsByClassName('sequencer-led');
+        const stepsInSequencer = sequencer.steps;
+        const pattern = sequencer.pattern; // The UNROTATED pattern array
+        const rotation = sequencer.rotation ?? 0;
+
+        if (stepsInSequencer <= 0 || !pattern) { // Added check for pattern existence
+            for (let i = 0; i < leds.length; i++) {
+                leds[i].style.display = 'none';
+                leds[i].classList.remove('active', 'playing', 'first-step');
+            }
+            return;
+        }
 
         for (let i = 0; i < leds.length; i++) {
             const led = leds[i];
-            const isActive = sequencer.getStep(i);
-            const isCurrent = i === currentStep % sequencer.steps;
+            const visualPosition = i; // The index of the LED in the visual ring
 
-            led.classList.toggle('active', isActive);
-            led.classList.toggle('playing', isCurrent);
+            if (visualPosition < stepsInSequencer) {
+                // --- FIX: Calculate the LOGICAL step index corresponding to this VISUAL position ---
+                // This mirrors the logic in getStep: (step - rotation + steps) % steps
+                const logicalStepIndex = (visualPosition - rotation + stepsInSequencer) % stepsInSequencer;
+
+                // Check the UNROTATED pattern array at the calculated LOGICAL step index
+                const isActive = pattern[logicalStepIndex];
+                // --- End Fix ---
+
+                // Check if this VISUAL position is the currently playing step
+                // 'currentStep' passed to this function is already the correct visual position
+                const isCurrent = visualPosition === currentStep;
+
+                // Check if this VISUAL position represents the logical first step (step 0 of the unrotated pattern)
+                // The logical step 0 appears at the visual position 'rotation'
+                const isFirstStep = visualPosition === (rotation % stepsInSequencer);
+
+                led.classList.toggle('active', isActive); // Green fill based on logical pattern value
+                led.classList.toggle('playing', isCurrent); // White stroke based on visual playing position
+                led.classList.toggle('first-step', isFirstStep); // Yellow stroke based on visual position of logical step 0
+                led.style.display = ''; // Ensure LED is visible
+            } else {
+                // Hide LEDs beyond the current number of steps
+                led.classList.remove('active', 'playing', 'first-step');
+                led.style.display = 'none';
+            }
+        }
+    }
+
+    // Helper method to calculate Least Common Multiple
+    calculateLCM(a, b) {
+        // Helper function to find GCD
+        const gcd = (x, y) => !y ? x : gcd(y, x % y);
+        return (a * b) / gcd(a, b);
+    }
+
+    // Add visual indication of which pattern is currently active
+    updateActivePatternIndicator(activePattern) {
+        if (!this.svg) return;
+        
+        // Get the rings from the SVG
+        const outerRing = this.svg.querySelector('.outer-ring');
+        const innerRing = this.svg.querySelector('.inner-ring');
+        
+        if (outerRing && innerRing) {
+            // Add/remove active-pattern class based on which pattern is active
+            outerRing.classList.toggle('active-pattern', activePattern === 0);
+            innerRing.classList.toggle('active-pattern', activePattern === 1);
         }
     }
 
     // Get the combined pattern value for the current step
     getStepValue(step) {
-        // Update individual step counters
-        this.outerStep = step % this.outerSequencer.steps;
-        this.innerStep = step % this.innerSequencer.steps;
-        
-        const outerStep = this.outerSequencer.getStep(this.outerStep);
-        const innerStep = this.innerSequencer.getStep(this.innerStep);
-        
         // If no pulses in either sequencer, return false
         if (this.outerSequencer.pulses === 0 && this.innerSequencer.pulses === 0) return false;
-        
-        // If only one sequencer has pulses, use that one
-        if (this.outerSequencer.pulses === 0) return innerStep;
-        if (this.innerSequencer.pulses === 0) return outerStep;
-        
-        // Both sequencers have pulses, use logic operator
-        switch (this.logicOperator.toUpperCase()) {
-            case 'AND': return outerStep && innerStep;
-            case 'OR': return outerStep || innerStep;
-            case 'XOR': return outerStep !== innerStep;
-            default: return outerStep || innerStep;
+
+        // Calculate the total length of both patterns
+        const pattern1Length = this.outerSequencer.steps;
+        const pattern2Length = this.innerSequencer.steps;
+        // Prevent division by zero
+        const totalPatternLength = (pattern1Length + pattern2Length) > 0 ? (pattern1Length + pattern2Length) : 1;
+
+        // Determine which pattern is active based on the current step within the total cycle
+        const cyclePosition = step % totalPatternLength;
+        // Default to inner if outer has 0 steps or cyclePosition is past outer length
+        const activePattern = (pattern1Length > 0 && cyclePosition < pattern1Length) ? 0 : 1;
+
+        // Determine the step value from the active sequencer
+        if (activePattern === 0 && pattern1Length > 0) {
+            const stepIndex = cyclePosition;
+            return this.outerSequencer.getStep(stepIndex); // Probability IS handled here
+        } else if (activePattern === 1 && pattern2Length > 0) {
+            const stepIndex = cyclePosition - pattern1Length;
+            return this.innerSequencer.getStep(stepIndex); // Probability IS handled here
+        } else {
+             return false;
         }
     }
 
@@ -1630,9 +1833,6 @@ class Track {
 
         // Add first section of sequencer controls
         sequencerContainer.appendChild(this.createSequencerControls('outer'));
-
-        // Add logic controls
-        sequencerContainer.appendChild(this.createLogicControls());
 
         // Add second section of sequencer controls
         sequencerContainer.appendChild(this.createSequencerControls('inner'));
@@ -1685,86 +1885,186 @@ class Track {
         const knobs = document.createElement('div');
         knobs.className = 'knob-controls';
 
-        // Steps knob - initialize at 16
+        // Steps knob
         const stepsKnob = this.createKnob({
             id: `${type}-steps`,
             label: 'Steps',
             min: 1,
             max: 16,
-            value: 16,  // Initialize at 16 steps
+            value: type === 'outer' ? this.outerSequencer.steps : this.innerSequencer.steps,
             onChange: (value) => {
                 const sequencer = type === 'outer' ? this.outerSequencer : this.innerSequencer;
-                sequencer.updateParams(value, sequencer.pulses, sequencer.rotation, sequencer.probability);
-                this.updateVisualization(0);
+                const oldRotation = sequencer.rotation; // Get rotation before update
+
+                // Update sequencer params - this now clamps rotation internally
+                const rotationWasClamped = sequencer.updateParams(
+                    value, // new steps
+                    sequencer.pulses,
+                    sequencer.rotation, // pass current rotation
+                    sequencer.probability,
+                    sequencer.distribution
+                );
+
+                // Update the max attribute of the corresponding rotation knob.
+                // NOTE: knob ids repeat across tracks, so scope the lookup to
+                // this track's control group instead of document.getElementById.
+                const rotKnobInput = container.querySelector(`#${type}-rotation`);
+                if (rotKnobInput) {
+                    rotKnobInput.max = Math.max(0, value - 1); // Max rotation is steps - 1
+                }
+
+                // If rotation was clamped by the steps change, update its UI
+                if (rotationWasClamped) {
+                    const newRotation = sequencer.rotation; // Get the newly clamped rotation
+                    const rotKnobContainer = rotKnobInput?.closest('.knob-container');
+                    if (rotKnobContainer) {
+                        const rotDisplay = rotKnobContainer.querySelector('.value-display');
+                        const rotIndicator = rotKnobContainer.querySelector('.knob-indicator');
+                        const rotMin = parseInt(rotKnobInput.min);
+                        const rotMax = parseInt(rotKnobInput.max); // Use the UPDATED max
+
+                        rotKnobInput.value = newRotation;
+                        if (rotDisplay) rotDisplay.textContent = newRotation;
+                        if (rotIndicator) {
+                             const rotationDegrees = ((newRotation - rotMin) / (rotMax - rotMin)) * 270 - 135;
+                             rotIndicator.style.transform = `rotate(${rotationDegrees}deg)`;
+                        }
+
+                        // Broadcast the clamped rotation value change
+                        if (this.groovebox && this.groovebox.broadcastStateChange) {
+                             console.log(`Broadcasting CLAMPED KNOB_CHANGE for ${type}-rotation with value ${newRotation}`);
+                             this.groovebox.broadcastStateChange('KNOB_CHANGE', {
+                                 trackId: this.name,
+                                 parameter: `${type}-rotation`, // Send the rotation param ID
+                                 value: newRotation
+                             });
+                        }
+                    }
+                }
+
+                this.updateVisualization(this.groovebox.currentStep); // Update visualization after changes
             }
         });
 
-        // Pulses knob - initialize at 0
+        // Pulses knob
         const pulsesKnob = this.createKnob({
             id: `${type}-pulses`,
             label: 'Pulses',
             min: 0,
-            max: 16,
-            value: 0,  // Initialize at 0 pulses
+            max: 16, // Max pulses can remain 16, but updateParams will clamp it to steps
+            value: type === 'outer' ? this.outerSequencer.pulses : this.innerSequencer.pulses,
             onChange: (value) => {
                 const sequencer = type === 'outer' ? this.outerSequencer : this.innerSequencer;
-                sequencer.updateParams(sequencer.steps, value, sequencer.rotation, sequencer.probability);
-                this.updateVisualization(0);
+                 // Update pulses - updateParams will clamp it based on current steps
+                sequencer.updateParams(
+                    sequencer.steps,
+                    value, // new pulses
+                    sequencer.rotation,
+                    sequencer.probability,
+                    sequencer.distribution
+                );
+                // Update the pulses knob UI in case it was clamped
+                // (scoped lookup: knob ids repeat across tracks)
+                const pulsesKnobInput = container.querySelector(`#${type}-pulses`);
+                const pulsesKnobContainer = pulsesKnobInput?.closest('.knob-container');
+                if (pulsesKnobContainer && sequencer.pulses !== value) { // Check if value was clamped
+                    const pulsesDisplay = pulsesKnobContainer.querySelector('.value-display');
+                    pulsesKnobInput.value = sequencer.pulses;
+                    if (pulsesDisplay) pulsesDisplay.textContent = sequencer.pulses;
+                    // Update indicator if needed (though less critical for pulses)
+                    const pulsesIndicator = pulsesKnobContainer.querySelector('.knob-indicator');
+                     if (pulsesIndicator) {
+                         const pMin = parseInt(pulsesKnobInput.min);
+                         const pMax = parseInt(pulsesKnobInput.max);
+                         const pRotationDegrees = ((sequencer.pulses - pMin) / (pMax - pMin)) * 270 - 135;
+                         pulsesIndicator.style.transform = `rotate(${pRotationDegrees}deg)`;
+                     }
+                     // Broadcast clamped pulses value if necessary
+                     if (this.groovebox && this.groovebox.broadcastStateChange) {
+                         this.groovebox.broadcastStateChange('KNOB_CHANGE', {
+                             trackId: this.name,
+                             parameter: `${type}-pulses`,
+                             value: sequencer.pulses
+                         });
+                     }
+                }
+                this.updateVisualization(this.groovebox.currentStep);
             }
         });
 
-        // Rotation knob - initialize at 0
+        // Rotation knob
         const rotationKnob = this.createKnob({
             id: `${type}-rotation`,
             label: 'Rotation',
             min: 0,
-            max: 31,
-            value: 0,  // Initialize at 0 rotation
+            // Set initial max based on current steps
+            max: Math.max(0, (type === 'outer' ? this.outerSequencer.steps : this.innerSequencer.steps) - 1),
+            value: type === 'outer' ? this.outerSequencer.rotation : this.innerSequencer.rotation,
             onChange: (value) => {
                 const sequencer = type === 'outer' ? this.outerSequencer : this.innerSequencer;
-                sequencer.updateParams(sequencer.steps, sequencer.pulses, value, sequencer.probability);
-                this.updateVisualization(0);
+                // updateParams will clamp rotation based on current steps
+                sequencer.updateParams(
+                    sequencer.steps,
+                    sequencer.pulses,
+                    value, // new rotation
+                    sequencer.probability,
+                    sequencer.distribution
+                );
+                // No need to manually update UI here, createKnob's drag logic handles it
+                // and broadcasts the change. updateParams ensures the internal value is correct.
+                this.updateVisualization(this.groovebox.currentStep);
             }
         });
 
-        // Probability knob - initialize at 100%
+        // Distribution knob (formerly Character)
+        const distributionKnob = this.createKnob({
+            id: `${type}-distribution`, // Changed ID
+            label: 'Distribution',      // Changed Label
+            min: 0,
+            max: 100,
+            value: type === 'outer' ? this.outerSequencer.distribution : this.innerSequencer.distribution, // Use distribution
+            onChange: (value) => {
+                const sequencer = type === 'outer' ? this.outerSequencer : this.innerSequencer;
+                sequencer.updateParams(
+                    sequencer.steps,
+                    sequencer.pulses,
+                    sequencer.rotation,
+                    sequencer.probability,
+                    value // Pass the new distribution value
+                );
+                this.updateVisualization(this.groovebox.currentStep); // Update viz
+            }
+        });
+
+        // Probability knob
         const probabilityKnob = this.createKnob({
             id: `${type}-probability`,
             label: 'Prob %',
             min: 0,
             max: 100,
-            value: 100,  // Initialize at 100%
+            value: type === 'outer' ? this.outerSequencer.probability : this.innerSequencer.probability,
             onChange: (value) => {
                 const sequencer = type === 'outer' ? this.outerSequencer : this.innerSequencer;
-                sequencer.updateParams(sequencer.steps, sequencer.pulses, sequencer.rotation, value);
-                this.updateVisualization(0);
+                sequencer.updateParams(
+                    sequencer.steps,
+                    sequencer.pulses,
+                    sequencer.rotation,
+                    value, // Pass the new probability value
+                    sequencer.distribution // Pass existing distribution
+                );
+                 this.updateVisualization(this.groovebox.currentStep); // Update viz
             }
         });
 
-        // Append knobs to the container
+        // Add all knobs
         knobs.appendChild(stepsKnob);
         knobs.appendChild(pulsesKnob);
         knobs.appendChild(rotationKnob);
+        knobs.appendChild(distributionKnob); // Add the distribution knob
         knobs.appendChild(probabilityKnob);
+        
         container.appendChild(knobs);
 
-        return container;
-    }
-
-    createLogicControls() {
-        const container = document.createElement('div');
-        container.className = 'logic-controls';
-
-        const select = document.createElement('select');
-        select.className = 'logic-operator';
-        ['AND', 'OR', 'XOR'].forEach(op => {
-            const option = document.createElement('option');
-            option.value = op;
-            option.textContent = op;
-            select.appendChild(option);
-        });
-
-        container.appendChild(select);
         return container;
     }
 
@@ -1772,93 +2072,151 @@ class Track {
         const container = document.createElement('div');
         container.className = 'knob-container';
 
-        const knob = document.createElement('div');
-        knob.className = 'knob';
-        knob.innerHTML = `
-            <div class="knob-outer">
-                <input type="range" 
-                       id="${id}" 
-                       min="${min}" 
-                       max="${max}" 
-                       value="${value}"
-                       class="knob-input">
-                <div class="knob-indicator"></div>
-                <div class="knob-surface"></div>
+        // Keep the same HTML structure
+        const knobHtml = `
+            <div class="knob">
+                <div class="knob-outer">
+                    <input type="range" id="${id}" min="${min}" max="${max}" value="${value}" class="knob-input" style="display: none;"> <!-- Hide the actual range input -->
+                    <div class="knob-indicator"></div>
+                    <div class="knob-surface"></div> <!-- We interact with this surface -->
+                </div>
             </div>
             <div class="knob-label">${label}</div>
             <div class="value-display">${value}</div>
         `;
+        container.innerHTML = knobHtml;
 
-        const input = knob.querySelector('input');
-        const display = knob.querySelector('.value-display');
-        const indicator = knob.querySelector('.knob-indicator');
-        const surface = knob.querySelector('.knob-surface');
+        const input = container.querySelector('.knob-input');
+        const indicator = container.querySelector('.knob-indicator');
+        const surface = container.querySelector('.knob-surface'); // Get the surface element
+        const display = container.querySelector('.value-display'); // Get the display element
 
+        // Initial rotation
+        const initialRotation = ((value - min) / (max - min)) * 270 - 135;
+        indicator.style.transform = `rotate(${initialRotation}deg)`;
+        console.log(`Knob ${id} created with initial value ${value}`);
+
+        // --- Start: Custom Drag Logic from groovebox.js ---
         let isDragging = false;
         let startY = 0;
         let startValue = 0;
 
-        // Handle mouse/touch interaction
         const startDrag = (e) => {
+            e.preventDefault(); // Prevent text selection/default drag behavior
             isDragging = true;
             startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
             startValue = parseInt(input.value);
+            surface.style.cursor = 'grabbing'; // Change cursor during drag
+            console.log(`Knob ${id} drag started. StartY: ${startY}, StartValue: ${startValue}`);
+
+            // Add listeners to the document to capture movement anywhere on the page
             document.addEventListener('mousemove', drag);
-            document.addEventListener('touchmove', drag);
+            document.addEventListener('touchmove', drag, { passive: false }); // passive: false to allow preventDefault
             document.addEventListener('mouseup', stopDrag);
             document.addEventListener('touchend', stopDrag);
-            surface.style.cursor = 'grabbing';
         };
 
         const drag = (e) => {
             if (!isDragging) return;
-            e.preventDefault();
+            e.preventDefault(); // Prevent scrolling on touch devices
 
             const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-            const diff = startY - currentY;
-            
-            // Adjust sensitivity here - lower number = more sensitive
+            const diff = startY - currentY; // Vertical difference
+
+            // Adjust sensitivity (lower number = more sensitive)
             const sensitivity = 2;
             let newValue = startValue + Math.round(diff / sensitivity);
-            
+
             // Clamp value between min and max
             newValue = Math.max(min, Math.min(max, newValue));
-            
-            // Update input, display, and indicator
-            input.value = newValue;
-            display.textContent = newValue;
-            
-            // Update knob rotation
-            const rotation = (newValue - min) / (max - min) * 270 - 135;
-            indicator.style.transform = `rotate(${rotation}deg)`;
-            
-            // Trigger onChange callback
-            onChange(newValue);
+            console.log(`Knob ${id} dragging. CurrentY: ${currentY}, Diff: ${diff}, NewValue: ${newValue}`);
+
+
+            // Only update if the value actually changed
+            if (newValue !== parseInt(input.value)) {
+                // Update hidden input, display text, and indicator rotation
+                input.value = newValue;
+                display.textContent = newValue;
+
+                const rotation = ((newValue - min) / (max - min)) * 270 - 135;
+                indicator.style.transform = `rotate(${rotation}deg)`;
+                console.log(`Knob ${id} updated. Rotation: ${rotation.toFixed(2)}deg`);
+
+
+                // Trigger onChange callback
+                if (onChange) {
+                    try {
+                        onChange(newValue);
+                        console.log(`Knob ${id} onChange callback executed.`);
+                    } catch (error) {
+                        console.error(`Error in onChange callback for ${id}:`, error);
+                    }
+                }
+
+                // Broadcast the change via WebSocket
+                if (this.groovebox && this.groovebox.broadcastStateChange) {
+                     console.log(`Broadcasting KNOB_CHANGE for ${id} with value ${newValue}`);
+                     this.groovebox.broadcastStateChange('KNOB_CHANGE', {
+                         trackId: this.name,
+                         parameter: id,
+                         value: newValue
+                     });
+                }
+            }
         };
 
         const stopDrag = () => {
+            if (!isDragging) return; // Prevent multiple triggers
             isDragging = false;
+            surface.style.cursor = 'grab'; // Restore cursor
+            console.log(`Knob ${id} drag stopped.`);
+
+            // Remove document listeners
             document.removeEventListener('mousemove', drag);
             document.removeEventListener('touchmove', drag);
             document.removeEventListener('mouseup', stopDrag);
             document.removeEventListener('touchend', stopDrag);
-            surface.style.cursor = 'grab';
         };
 
-        // Add event listeners
+        // Add event listeners to the surface
         surface.addEventListener('mousedown', startDrag);
-        surface.addEventListener('touchstart', startDrag);
+        surface.addEventListener('touchstart', startDrag, { passive: false }); // passive: false to allow preventDefault
 
-        // Double click to reset to default value
+        // Double click to reset to default value (using the initial 'value' passed in)
         surface.addEventListener('dblclick', () => {
-            input.value = value; // Reset to default value
-            display.textContent = value;
-            const rotation = (value - min) / (max - min) * 270 - 135;
+            const defaultValue = parseFloat(input.getAttribute('value')); // Or use the initial 'value' if stored
+            console.log(`Knob ${id} double-clicked. Resetting to default: ${defaultValue}`);
+            input.value = defaultValue;
+            display.textContent = defaultValue;
+            const rotation = ((defaultValue - min) / (max - min)) * 270 - 135;
             indicator.style.transform = `rotate(${rotation}deg)`;
-            onChange(value);
-        });
 
-        container.appendChild(knob);
+            if (onChange) {
+                 try {
+                     onChange(defaultValue);
+                     console.log(`Knob ${id} onChange callback executed on reset.`);
+                 } catch (error) {
+                     console.error(`Error in onChange callback for ${id} during reset:`, error);
+                 }
+            }
+             // Broadcast the reset change
+             if (this.groovebox && this.groovebox.broadcastStateChange) {
+                 console.log(`Broadcasting KNOB_CHANGE for ${id} reset with value ${defaultValue}`);
+                 this.groovebox.broadcastStateChange('KNOB_CHANGE', {
+                     trackId: this.name,
+                     parameter: id,
+                     value: defaultValue
+                 });
+             }
+        });
+        // --- End: Custom Drag Logic ---
+
+        // REMOVE the old 'input' event listener
+        // input.addEventListener('input', (e) => { ... });
+        // REMOVE the old focus/blur listeners
+        // input.addEventListener('focus', (e) => ...);
+        // input.addEventListener('blur', (e) => ...);
+
         return container;
     }
 
@@ -1943,6 +2301,25 @@ class Track {
                 this.controlsContainer.replaceChild(newNoteSelection, oldNoteSelection);
             }
         }
+    }
+
+    createLogicControls() {
+        const container = document.createElement('div');
+        container.className = 'pattern-sequence-controls';
+        
+        // Create a label for sequential pattern mode
+        const label = document.createElement('div');
+        label.className = 'sequence-label';
+        label.textContent = 'Sequential Patterns';
+        
+        // Add pattern cycle indicator
+        const cycleInfo = document.createElement('div');
+        cycleInfo.className = 'cycle-info';
+        cycleInfo.textContent = 'Pattern A plays completely, then Pattern B';
+        
+        container.appendChild(label);
+        container.appendChild(cycleInfo);
+        return container;
     }
 }
 

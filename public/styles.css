@@ -1,1159 +1,1049 @@
+/*
+ * drum-circles: a rheome surface.
+ * Same terminal-lit instrument-panel world as the rheome.tools landing TUI:
+ * cool blue-grey near-blacks, three tiers of off-white text, one porcelain
+ * accent (#ece7da) reserved for interactive/selected states. Kaolin's LED
+ * pair (#00FF88 tonal / #00D4FF noisy) is reserved for the "display" layer —
+ * the sequencer rings and VU meters — the parts of a groovebox that light up.
+ * Panels are btop/lazygit school: hairline borders, titles set into the
+ * border line, one faint page-wide scanline; no flicker, no glow spam.
+ */
+
 :root {
-    --neon-green: #00ff41;
-    --dark-bg: #0a0a0a;
-    --darker-grey: #1a1a1a;
-    --dark-grey: #2a2a2a;
-    --mid-grey: #404040;
-    --light-grey: #808080;
-    --grid-color: rgba(0, 255, 65, 0.1);
-    --terminal-glow: 0 0 10px rgba(255, 255, 255, 0.5);
-    --primary-blue: #2196F3;
-    --blue-glow: rgba(33, 150, 243, 0.3);
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --bg: #050608;
+  --panel: rgba(7, 9, 14, 0.55);
+  --surface: #0b0e16;
+  --t1: #eef1f6; /* bright: values, names, active */
+  --t2: #9aa3b2; /* body */
+  --t3: #545d6a; /* dim labels, hints */
+  --tb: #ece7da; /* porcelain: interactive/selected ONLY */
+  --tb-ink: #14120c;
+  --line: #232833;
+  --led-a: #00ff88; /* kaolin tonal: outer ring, VU */
+  --led-b: #00d4ff; /* kaolin noisy: inner ring */
+  --cursor: #fcfdfc; /* playing step stroke */
+  --glow: 0 0 14px rgba(236, 231, 218, 0.35);
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
 
 body {
-    background-color: var(--dark-bg);
-    background-image: 
-        linear-gradient(var(--grid-color) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-    background-size: 20px 20px;
-    color: white;
-    font-family: 'Courier New', monospace;
+  background: var(--bg);
+  color: var(--t2);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.45;
+  /* terminal dialect: lowercase, tracking 0 */
+  letter-spacing: 0;
+  min-height: 100vh;
 }
 
+::selection {
+  background: var(--tb);
+  color: var(--tb-ink);
+}
+
+/* The one texture: a faint page-wide scanline. No flicker. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.13) 3px
+  );
+}
+
+/* Thin scrollbars everywhere (webkit). */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 1px solid var(--tb);
+  outline-offset: 2px;
+}
+
+/* ---- header bar ---- */
+
+.bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.bar-id {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.wordmark {
+  color: var(--t1);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.tagline {
+  color: var(--t3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.return-link {
+  color: var(--t3);
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.return-link:hover,
+.return-link:focus-visible {
+  color: var(--tb);
+  outline: none;
+}
+
+/* ---- groovebox column ----
+ * One flex-wrap container so the JS-appended panels (.scale-selector, .mixer
+ * land at the END of .groovebox) can be reordered visually: transport + fx +
+ * scale share the top strip, tracks fill the middle, mixer sits at the
+ * bottom. Full-width rows opt in with width:100%. */
+
 .groovebox {
-    padding: 20px;
-    background: rgba(0, 0, 0, 0.85);
-    border: 1px solid white;
-    box-shadow: var(--terminal-glow);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 1.2rem 1rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.9rem;
 }
 
 .transport {
-    margin-bottom: 20px;
-    display: flex;
-    gap: 20px;
-    align-items: center;
+  order: 1;
 }
-
-.transport button {
-    padding: 10px 20px;
-    background: transparent;
-    border: 1px solid white;
-    color: var(--neon-green);
-    text-transform: uppercase;
-    font-family: 'Courier New', monospace;
-    box-shadow: var(--terminal-glow);
-    transition: all 0.2s;
-    cursor: pointer;
+.scale-selector {
+  order: 2;
 }
-
-.transport button:hover {
-    background: var(--dark-grey);
-    border-color: white;
-    color: white;
-    box-shadow: var(--terminal-glow);
+.fx {
+  order: 3;
+  flex: 1 1 auto;
 }
-
 .tracks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    padding: 20px;
-    max-width: 100%;
-    overflow-x: hidden;
+  order: 4;
+  width: 100%;
 }
-
-.track {
-    flex: 1;
-    min-width: 200px;
-    max-width: calc(16.66% - 20px);
-    margin-bottom: 20px;
-    width: 220px;
-    padding: 12px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    background: var(--darker-grey);
-    border: 1px solid white;
-    border-radius: 5px;
-}
-
-@media (max-width: 1200px) {
-    .track {
-        max-width: calc(50% - 20px);
-    }
-}
-
-@media (max-width: 768px) {
-    .track {
-        max-width: 100%;
-    }
-}
-
-.track > * {
-    width: 100%;
-}
-
-.track h3 {
-    text-align: center;
-    margin: 5px 0;
-}
-
-.circular-sequencer {
-    width: 180px;
-    height: 180px;
-    margin: 10px auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-.circular-sequencer svg {
-    width: 100%;
-    height: 100%;
-}
-
-.sequencer-led {
-    fill: var(--dark-grey);
-    stroke: var(--neon-green);
-    stroke-width: 1;
-    filter: blur(0.5px);
-    transition: all 0.2s ease;
-}
-
-.sequencer-led.active {
-    fill: var(--neon-green);
-    filter: drop-shadow(0 0 4px var(--blue-glow));
-}
-
-.sequencer-led.playing {
-    stroke: var(--primary-blue);
-    stroke-width: 2.5;
-    filter: drop-shadow(0 0 6px var(--blue-glow));
-}
-
-.track-controls {
-    width: 100%;
-    padding: 0;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-}
-
-.sequencer-controls {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    align-items: center;
-    padding: 10px;
-}
-
-.sequencer-control-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    padding: 10px;
-    gap: 10px;
-    background: var(--darker-grey);
-    border-radius: 4px;
-}
-
-.note-selection {
-    width: calc(100% - 20px);
-    aspect-ratio: 1;
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 2px;
-    padding: 8px;
-    margin: 10px auto;
-    background: var(--darker-grey);
-    border: none;
-    border-radius: 0;
-}
-
-.synth-controls {
-    width: 100%;
-    max-width: 180px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-}
-
 .mixer {
-    display: flex;
-    gap: 20px;
-    padding: 20px;
-    background: rgba(0, 20, 0, 0.9);
-    border-radius: 5px;
-    margin-bottom: 20px;
-    overflow-x: auto;
-    border: 1px solid white;
-    box-shadow: var(--terminal-glow);
+  order: 5;
+  width: 100%;
 }
 
-.mixer-channel {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    min-width: 80px;
-    position: relative;
+/* ---- panel dialect ----
+ * Hairline border, rounded 6px, translucent dark face; the title is set INTO
+ * the top border on a chip of page background so it breaks the line. */
+
+.transport,
+.fx,
+.scale-selector,
+.track,
+.mixer {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
 }
 
-.fader-container {
-    height: 150px;
-    width: 30px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.transport::before,
+.fx::before,
+.scale-selector::before,
+.mixer::before {
+  position: absolute;
+  top: -0.62em;
+  left: 0.75rem;
+  padding: 0 0.55ch;
+  background: var(--bg);
+  color: var(--t3);
+  font-size: 10px;
+  line-height: 1.2;
+  user-select: none;
 }
 
-.vu-meter {
-    width: 30px;
-    height: 150px;
-    background: rgba(0, 20, 0, 0.5);
-    position: absolute;
-    border-radius: 3px;
-    overflow: hidden;
-    border: 1px solid white;
+.transport::before {
+  content: "transport";
+}
+.fx::before {
+  content: "fx";
+}
+.scale-selector::before {
+  content: "scale";
+}
+.mixer::before {
+  content: "mixer";
 }
 
-.vu-meter-fill {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    background: var(--neon-green);
-    transition: height 0.05s;
-    box-shadow: var(--terminal-glow);
+/* ---- transport ---- */
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 0.85rem 1rem 0.75rem;
 }
 
-.fader {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 150px !important;
-    height: 30px !important;
-    transform: rotate(-90deg);
-    transform-origin: center;
-    position: absolute;
-    background: transparent;
-    opacity: 0.3;
-    z-index: 2;
-    cursor: pointer;
-    transition: opacity 0.2s;
+/* The primary control: same dialect, more presence. */
+#playButton {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--t2);
+  text-transform: lowercase; /* the JS writes Play/Stop */
+  padding: 0.45rem 1.6rem;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
 
-.fader:hover {
-    opacity: 0.6;
+#playButton:hover {
+  border-color: var(--tb);
+  color: var(--t1);
 }
 
-.mixer-channel button {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    border: 1px solid white;
-    background: var(--darker-grey);
-    color: var(--neon-green);
-    cursor: pointer;
+#playButton.active {
+  background: var(--tb);
+  border-color: var(--tb);
+  color: var(--tb-ink);
+  box-shadow: var(--glow);
 }
 
-.mixer-channel button.active {
-    background: var(--dark-grey);
-    color: var(--neon-green);
-    box-shadow: var(--terminal-glow);
+.bpm {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--t3);
+  font-size: 11px;
 }
 
-.mixer-separator {
-    width: 2px;
-    height: 200px;
-    background: var(--mid-grey);
-    margin: 0 20px;
+#bpmControl {
+  width: 3.6em;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--t1);
+  font-size: 12px;
+  padding: 0.15rem 0.1rem;
+  caret-color: var(--tb);
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
-.effects {
-    margin-top: 20px;
-    display: flex;
-    gap: 20px;
-    background: #34495e;
-    padding: 15px;
-    border-radius: 5px;
+#bpmControl::-webkit-inner-spin-button,
+#bpmControl::-webkit-outer-spin-button {
+  -webkit-appearance: none;
 }
 
-.effects-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+#bpmControl:focus {
+  outline: none;
+  border-bottom-color: var(--tb);
 }
 
-.parameter-control {
-    flex-direction: column;
-    padding: 8px;
-    gap: 5px;
+/* ---- fx panel ---- */
+
+.fx {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.6rem;
+  padding: 0.85rem 1rem 0.75rem;
 }
 
-.parameter-control label {
-    font-size: 0.8em;
-    white-space: nowrap;
-    display: block;
+.fx-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
 }
 
-.parameter-value {
-    font-family: monospace;
-    font-size: 0.9em;
-    margin-top: 5px;
+.fx-name {
+  color: var(--t1);
+  font-size: 11px;
+  font-weight: 500;
 }
+
+.fx-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--t3);
+  font-size: 11px;
+}
+
+.fx-group input[type="range"] {
+  width: 64px;
+}
+
+.fx-group .value-display {
+  min-width: 3.5ch;
+  font-size: 10px;
+  text-align: right;
+}
+
+/* ---- scale selector (JS-generated) ---- */
 
 .scale-selector {
-    background: #34495e;
-    padding: 15px;
-    border-radius: 5px;
-    display: flex;
-    gap: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.1rem;
+  padding: 0.85rem 1rem 0.75rem;
 }
 
-.global-controls-row {
-    display: flex;
-    gap: 20px;
-    margin-bottom: 20px;
-    align-items: center;
+.scale-selector label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--t3);
+  font-size: 11px;
+  text-transform: lowercase; /* the JS writes Scale: / Root Note: */
 }
 
-.global-controls-row .scale-selector {
-    flex: 0 0 auto;
-    margin: 0;
+/* ---- selects ---- */
+
+#scaleSelect,
+#rootNote,
+.logic-operator {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--t1);
+  font-size: 12px;
+  padding: 0.25rem 0.5rem;
+  transition: border-color 120ms ease;
 }
 
-.effects-compact {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #34495e;
-    padding: 8px 15px;
-    border-radius: 5px;
-    font-size: 12px;
+#scaleSelect:hover,
+#rootNote:hover,
+.logic-operator:hover {
+  border-color: var(--tb);
 }
 
-.effects-compact span {
-    color: #00ff00;
-    font-weight: bold;
+#scaleSelect option,
+#rootNote option,
+.logic-operator option {
+  background: var(--surface);
+  color: var(--t1);
 }
 
-.effects-compact label {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    color: white;
-}
+/* ---- range sliders ---- */
 
-.effects-compact input[type="range"] {
-    width: 60px;
-    height: 4px;
-    accent-color: var(--neon-green);
-}
-
-.scale-selector select {
-    padding: 5px;
-    border-radius: 3px;
-    background: #2c3e50;
-    color: white;
-    border: 1px solid #95a5a6;
-}
-
-.pan-container {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-}
-
-.pan-container input {
-    width: 80%;
-}
-
-.channel-meter {
-    font-size: 0.8em;
-    text-align: center;
-    min-height: 20px;
-}
-
-/* Slider customization */
 input[type="range"] {
-    -webkit-appearance: none;
-    background: #2c3e50;
-    border-radius: 8px;
-    height: 4px;
-    accent-color: var(--neon-green);
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px; /* hit area; the drawn track is 2px */
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--line);
+  border-radius: 1px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 15px;
-    height: 15px;
-    background: var(--primary-blue);
-    border: none;
-    border-radius: 50%;
-    margin-top: -6px;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--tb);
+  border: 0;
+}
+
+input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: var(--line);
+  border-radius: 1px;
 }
 
 input[type="range"]::-moz-range-thumb {
-    width: 15px;
-    height: 15px;
-    background: var(--primary-blue);
-    border: none;
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--tb);
 }
 
-/* Control group styling */
-.control-group {
-    background: #34495e;
-    padding: 10px;
-    border-radius: 5px;
+/* ---- tracks grid ---- */
+
+.tracks {
+  display: grid;
+  /* 220px min lets all six tracks share one row inside the 1480px column */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
 }
 
-.control-group h4 {
-    margin: 0 0 10px 0;
-    color: #3498db;
+.track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1rem 0.8rem 0.8rem;
+  min-width: 0;
 }
 
-/* Style the slider track to be transparent */
-.fader::-webkit-slider-runnable-track {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    height: 3px;
+/* Track title (the synth name) set into the top border, like a panel title
+ * but bright: it names the instrument. */
+.track h3 {
+  position: absolute;
+  top: -0.62em;
+  left: 0.75rem;
+  padding: 0 0.55ch;
+  background: var(--bg);
+  color: var(--t1);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-transform: lowercase;
+  user-select: none;
 }
 
-/* Style the slider thumb to be semi-transparent */
-.fader::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 15px;
-    height: 15px;
-    background: rgba(40, 40, 40, 0.8);
-    border: 1px solid var(--neon-green);
-    border-radius: 50%;
-    margin-top: -6px;
-    cursor: pointer;
+/* ---- circular sequencer: the display layer ---- */
+
+.circular-sequencer {
+  width: 180px;
+  height: 180px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-/* Firefox styles */
-.fader::-moz-range-track {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    height: 3px;
-}
-
-.fader::-moz-range-thumb {
-    width: 15px;
-    height: 15px;
-    background: rgba(40, 40, 40, 0.8);
-    border: 1px solid var(--neon-green);
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-}
-
-/* Add scanline effect */
-.groovebox::after {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: repeating-linear-gradient(
-        0deg,
-        rgba(0, 0, 0, 0.15) 0px,
-        rgba(0, 0, 0, 0.15) 1px,
-        transparent 1px,
-        transparent 2px
-    );
-    pointer-events: none;
-}
-
-/* Add CRT flicker animation */
-@keyframes flicker {
-    0% { opacity: 0.97; }
-    5% { opacity: 0.95; }
-    10% { opacity: 0.97; }
-    15% { opacity: 0.95; }
-    20% { opacity: 0.97; }
-}
-
-.groovebox {
-    animation: flicker 5s infinite;
-}
-
-input[type="number"] {
-    background: transparent;
-    border: 1px solid var(--neon-green);
-    color: var(--neon-green);
-    font-family: 'Courier New', monospace;
-}
-
-.mixer-channel h4 {
-    text-transform: uppercase;
-    letter-spacing: 1px;
+.circular-sequencer svg {
+  width: 100%;
+  height: 100%;
 }
 
 .sequencer-led {
-    fill: var(--dark-grey);
-    stroke: var(--neon-green);
-    stroke-width: 1;
-    transition: fill 0.1s ease;
+  fill: #10141b;
+  stroke: var(--line);
+  stroke-width: 1;
+  transition: fill 100ms ease, stroke 100ms ease;
 }
 
-.sequencer-led.active {
-    fill: var(--neon-green);
-    filter: drop-shadow(0 0 2px var(--neon-green));
+/* Kaolin's tonal/noisy pair distinguishes the two euclidean patterns. */
+.outer-ring .sequencer-led.active {
+  fill: var(--led-a);
+  stroke: var(--led-a);
+  filter: drop-shadow(0 0 3px rgba(0, 255, 136, 0.55));
+}
+
+.inner-ring .sequencer-led.active {
+  fill: var(--led-b);
+  stroke: var(--led-b);
+  filter: drop-shadow(0 0 3px rgba(0, 212, 255, 0.55));
 }
 
 .sequencer-led.playing {
-    stroke: white;
-    stroke-width: 2;
-    filter: drop-shadow(0 0 4px white);
+  stroke: var(--cursor);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px rgba(252, 253, 252, 0.65));
 }
 
-.track-sequencer {
-    background: var(--darker-grey);
-    border: 1px solid white;
-    border-radius: 5px;
-    padding: 20px;
-    margin: 10px 0;
-    display: grid;
-    grid-template-columns: 200px 1fr;
-    gap: 20px;
-    align-items: center;
-}
+/* ---- track controls ---- */
 
+.track-controls,
 .sequencer-controls {
-    width 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: center;
-    padding: 0px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-width: 0;
 }
 
+/* Each section inside a track opens with a hairline and a dim label. */
 .sequencer-control-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    padding: 5px;
-    gap: 5px;
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
 }
+
+.outer-controls::before,
+.inner-controls::before {
+  display: block;
+  color: var(--t3);
+  font-size: 10px;
+  margin-bottom: 0.35rem;
+}
+
+.outer-controls::before {
+  content: "outer";
+}
+.inner-controls::before {
+  content: "inner";
+}
+
+/* ---- knobs ---- */
 
 .knob-controls {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(3, auto);
-    gap: 8px;
-    width: 100%;
-    padding: 0;
-}
-
-.knob-row {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem 0.5rem;
 }
 
 .knob-container {
-    position: relative;
-    width: 60px;
-    height: 80px;
-    margin: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .knob-outer {
-    position: relative;
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: var(--dark-grey);
-    border: 2px solid var(--mid-grey);
-    margin: 0 auto;
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  transition: border-color 120ms ease;
 }
 
-.knob-input {
-    position: absolute;
-    opacity: 0;
-    width: 100%;
-    height: 100%;
-    cursor: grab;
+.knob-outer:hover {
+  border-color: var(--tb);
 }
 
+/* Pointer line: porcelain with a faint glow. Geometry matters — the JS
+ * rotates it around bottom-center (= the knob's center). */
 .knob-indicator {
-    position: absolute;
-    width: 2px;
-    height: 20px;
-    background: var(--neon-green);
-    left: 50%;
-    top: 5px;
-    transform-origin: bottom center;
-    transform: rotate(-135deg);
-    box-shadow: 0 0 2px var(--neon-green);
+  position: absolute;
+  width: 2px;
+  height: 19px;
+  top: 5px;
+  left: calc(50% - 1px);
+  background: var(--tb);
+  box-shadow: 0 0 4px rgba(236, 231, 218, 0.45);
+  transform-origin: bottom center;
+  transform: rotate(-135deg);
+  pointer-events: none;
 }
 
 .knob-surface {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 50%;
-    cursor: grab;
-    z-index: 1;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  cursor: grab;
+  z-index: 1;
 }
 
 .knob-surface:active {
-    cursor: grabbing;
+  cursor: grabbing;
 }
 
 .knob-label {
-    text-align: center;
-    margin-top: 5px;
-    font-size: 10px;
-    color: var(--light-grey);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+  margin-top: 0.3rem;
+  color: var(--t3);
+  font-size: 10px;
+  text-align: center;
+  text-transform: lowercase;
 }
 
 .value-display {
-    text-align: center;
-    margin-top: 2px;
-    font-size: 12px;
-    color: var(--neon-green);
-    font-family: 'Courier New', monospace;
+  color: var(--t1);
+  font-size: 12px;
+  text-align: center;
 }
 
-/* Synth parameter styles */
-.param-control {
-    width: 100%;
-    max-width: 180px;
-    margin: 5px auto;
-    text-align: center;
-}
-
-.param-control input[type="range"] {
-    width: 100%;
-    margin: 5px 0;
-}
-
-.param-control input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    background: #00ff00;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-.param-control label {
-    color: #00ff00;
-    font-size: 12px;
-    width: 80px;
-}
+/* ---- logic / pattern-mode row (JS-generated when present) ---- */
 
 .logic-controls {
-    margin: 10px 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
+  display: flex;
+  justify-content: center;
 }
 
-.logic-operator {
-    width: 80px;
-    padding: 4px 8px;
-    text-align: center;
-    background: transparent;
-    color: white;
-    border: 1px solid white;
-    border-radius: 4px;
-    font-family: var(--font-family);
+.pattern-sequence-controls {
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
 }
 
-.logic-operator option {
-    background: var(--darker-grey);
-    color: white;
-    font-family: var(--font-family);
+.sequence-label {
+  color: var(--t1);
+  font-size: 11px;
 }
+
+.cycle-info {
+  color: var(--t3);
+  font-size: 10px;
+}
+
+/* ---- note grid: 8x8, scale-locked ---- */
 
 .note-selection {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 2px;
-    width: 100%;
-    max-width: 160px;
-    aspect-ratio: 1;
-    padding: 8px;
-    margin: 10px auto;
-    background: var(--darker-grey);
-    border: 1px solid var(white);
-    border-radius: 8px;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  width: 100%;
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
+}
+
+.note-selection::before {
+  content: "notes";
+  grid-column: 1 / -1;
+  color: var(--t3);
+  font-size: 10px;
+  margin-bottom: 0.15rem;
 }
 
 .note-button {
-    aspect-ratio: 1;
-    width: 100%;
-    padding: 0;
-    font-size: 0.65em;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--dark-grey);
-    border: 1px solid white;
-    color: var(--neon-green);
-    cursor: pointer;
-    transition: all 0.2s;
+  aspect-ratio: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--t3);
+  font-size: 8.5px;
+  line-height: 1;
+  padding: 0;
+  transition: border-color 100ms ease, background 100ms ease,
+    color 100ms ease;
+}
+
+.note-button:hover {
+  border-color: var(--tb);
+  color: var(--t2);
 }
 
 .note-button.selected {
-    background: var(--primary-blue);
-    color: white;
-    border-color: var(--primary-blue);
+  background: var(--tb);
+  border-color: var(--tb);
+  color: var(--tb-ink);
 }
 
-/* Track layout adjustments */
-.track {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    padding: 15px;
-    background: var(--darker-grey);
-    border: 1px solid white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.track > * {
-    width: 100%;
-}
-
-.track h3 {
-    text-align: center;
-    margin: 5px 0;
-}
-
-.circular-sequencer {
-    margin: 0 auto;
-    width: 180px;
-    height: 180px;
-}
-
-.track-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-}
-
-.note-selection {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 2px;
-    width: 100%;
-    aspect-ratio: 1;
-    margin: 10px auto;
-}
+/* ---- synth params ---- */
 
 .synth-controls {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
+}
+
+.synth-controls::before {
+  content: "synth";
+  color: var(--t3);
+  font-size: 10px;
+  margin-bottom: 0.1rem;
 }
 
 .param-control {
-    width: 100%;
-    text-align: center;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.1rem 0.6rem;
 }
 
-.groovebox-container {
-    display: grid;
-    grid-template-rows: auto 1fr auto;
-    min-height: 100vh;
-    padding: 20px;
-    gap: 20px;
-    background: #111;
-    color: #00ff00;
+.param-control label {
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--t3);
+  font-size: 10px;
+  text-transform: lowercase;
 }
 
-.sequencer-controls-section,
-.visual-section,
-.synth-controls-section {
-    border: 1px solid #00ff00;
-    padding: 20px;
-    border-radius: 8px;
+.param-control .value-display {
+  grid-column: 2;
+  grid-row: 1;
+  text-align: right;
 }
 
-.tracks-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 10px;
-    width: 100%;
-    overflow-x: auto;
-    padding: 10px;
+.param-control input[type="range"] {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
 }
 
-.track-sequencer-controls,
-.track-synth-controls {
-    padding: 10px;
-    margin: 10px;
-    border: 1px solid #00ff00;
-    border-radius: 4px;
+/* ---- mixer ---- */
+
+.mixer {
+  display: flex;
+  align-items: stretch;
+  /* wrap rather than scroll: overflow-x would clip the title chip set into
+   * the top border, and wrapped channel rows read fine on narrow screens */
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  padding: 1.1rem 1rem 0.8rem;
 }
 
-h3 {
-    color: #00ff00;
-    text-transform: uppercase;
-    margin: 5px 0;
-    font-size: 12px;
+.mixer h4 {
+  color: var(--t3);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: lowercase;
 }
 
-.logic-controls {
-    margin: 5px 0;
-}
-
-.logic-operator {
-    background: transparent;
-    color: #00ff00;
-    border: 1px solid #00ff00;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-family: var(--font-family);
-}
-
-.logic-operator option {
-    background: #111;
-}
-
+/* Master compressor block leads the row. */
 .compressor-controls {
-    background: #2a2a2a;
-    padding: 1rem;
-    border-radius: 4px;
-    margin-bottom: 1rem;
+  flex: 0 0 auto;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-right: 1.1rem;
+  border-right: 1px solid var(--line);
+}
+
+.compressor-controls h4 {
+  color: var(--t1);
+  font-weight: 500;
+  font-size: 11px;
+  margin-bottom: 0.2rem;
 }
 
 .comp-control {
-    display: flex;
-    align-items: center;
-    margin: 0.5rem 0;
-    gap: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .comp-control label {
-    width: 80px;
-    font-size: 0.8rem;
+  flex: 0 0 72px;
+  color: var(--t3);
+  font-size: 10px;
+  text-transform: lowercase;
 }
 
 .comp-control input[type="range"] {
-    flex: 1;
+  flex: 1 1 auto;
+  min-width: 40px;
 }
 
 .comp-control .value-display {
-    width: 60px;
-    text-align: right;
-    font-size: 0.8rem;
+  flex: 0 0 52px;
+  text-align: right;
+  font-size: 10px;
 }
 
-/* Add horizontal scrollbar styles */
-.tracks::-webkit-scrollbar {
-    height: 8px;
+.mixer-separator {
+  flex: 0 0 1px;
+  align-self: stretch;
+  background: var(--line);
 }
 
-.tracks::-webkit-scrollbar-track {
-    background: var(--darker-grey);
+/* Channel strips: name, fader-over-VU, pan, mute/solo. */
+.mixer-channel {
+  flex: 0 0 auto;
+  min-width: 72px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  justify-items: center;
+  align-content: start;
+  gap: 0.5rem 0.35rem;
 }
 
-.tracks::-webkit-scrollbar-thumb {
-    background: var(--neon-green);
-    border-radius: 4px;
+.mixer-channel h4 {
+  grid-column: 1 / -1;
+  color: var(--t1);
+  font-size: 11px;
+  font-weight: 500;
 }
 
-/* Add vertical scrollbar styles for tracks */
-.track::-webkit-scrollbar {
-    width: 8px;
+/* The fader rides on top of the VU meter (rotated range input); the flex
+ * centering below is what keeps the rotated absolute input aligned — keep. */
+.fader-container {
+  grid-column: 1 / -1;
+  position: relative;
+  width: 30px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.track::-webkit-scrollbar-track {
-    background: var(--darker-grey);
+.vu-meter {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
-.track::-webkit-scrollbar-thumb {
-    background: var(--neon-green);
-    border-radius: 4px;
+/* LED green rising to cyan at the top; the gradient is pinned to the meter's
+ * full height so the colors stay put as the fill moves. */
+.vu-meter-fill {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  background: linear-gradient(to top, var(--led-a) 0%, var(--led-b) 100%);
+  background-size: 100% 150px;
+  background-position: bottom;
+  transition: height 50ms linear;
 }
 
-/* Update all text elements */
-h3,
-.track h3,
-.mixer-channel h4,
-.knob-label,
-.value-display,
-.param-control label,
-.logic-operator,
-.note-button,
-.transport button,
-.control-group h4,
-.channel-meter,
-.parameter-value,
-.comp-control label {
-    color: white;
+.fader {
+  position: absolute;
+  width: 150px;
+  height: 30px;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  background: transparent;
+  z-index: 2;
+  cursor: grab;
 }
 
-/* Keep sequencer LEDs and specific elements green */
-.sequencer-led {
-    fill: var(--dark-grey);
-    stroke: var(--neon-green);
+.fader:active {
+  cursor: grabbing;
 }
 
-.sequencer-led.active {
-    fill: var(--neon-green);
-    filter: drop-shadow(0 0 2px var(--neon-green));
+.fader::-webkit-slider-runnable-track {
+  height: 2px;
+  background: rgba(238, 241, 246, 0.18);
 }
 
-/* Update any hover states */
-.transport button:hover {
-    background: var(--dark-grey);
-    border-color: white;
-    color: white;
-    box-shadow: var(--terminal-glow);
+.fader::-moz-range-track {
+  height: 2px;
+  background: rgba(238, 241, 246, 0.18);
 }
 
-/* Update select options */
-.logic-operator option,
-.scale-selector select {
-    background: var(--darker-grey);
-    color: white;
+.pan-container {
+  grid-column: 1 / -1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
-/* Update font family globally */
-:root {
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+.pan-container input {
+  width: 64px;
 }
 
-body, 
-button,
-select,
-input {
-    font-family: var(--font-family);
+.mute,
+.solo {
+  width: 26px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--t2);
+  font-size: 10px;
+  line-height: 1;
+  text-transform: lowercase; /* the JS writes M / S */
+  padding: 0;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
 
-/* Add these new styles */
+.mute:hover,
+.solo:hover {
+  border-color: var(--tb);
+  color: var(--t1);
+}
+
+.mute.active,
+.solo.active {
+  background: var(--tb);
+  border-color: var(--tb);
+  color: var(--tb-ink);
+  box-shadow: var(--glow);
+}
+
+/* ---- help system ----
+ * The icon toggles .help-mode on <body>; the pointer-events machinery below
+ * is load-bearing — it freezes the instrument so hovering reads tooltips
+ * instead of tweaking knobs. Restyled porcelain, mechanics preserved. */
+
 .help-icon {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    cursor: pointer;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
-    pointer-events: auto !important;
+  position: fixed;
+  top: 3.5rem;
+  right: 1.25rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--t3);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  pointer-events: auto !important;
 }
 
 .help-icon:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  border-color: var(--tb);
+  color: var(--t1);
 }
 
 .help-icon.active {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.4);
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-}
-
-/* Ensure help button stays clickable */
-.help-mode .help-icon {
-    pointer-events: auto !important;
+  background: var(--tb);
+  border-color: var(--tb);
+  color: var(--tb-ink);
+  box-shadow: var(--glow);
 }
 
 .help-tooltip {
-    position: fixed;
-    background: rgba(0, 0, 0, 0.95);
-    border: 2px solid var(--neon-green);
-    color: white;
-    padding: 12px 15px;
-    border-radius: 8px;
-    font-size: 14px;
-    max-width: 300px;
-    z-index: 1000;
-    box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    line-height: 1.4;
-    text-align: left;
+  position: fixed;
+  background: rgba(7, 9, 14, 0.95);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--t2);
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 0.7rem 0.85rem;
+  max-width: 300px;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  text-align: left;
 }
 
-.help-mode .help-active {
-    outline: 2px solid var(--neon-green);
-    box-shadow: 0 0 10px var(--neon-green);
-    cursor: help;
-    position: relative;
-    z-index: 1;
-    pointer-events: auto !important;
-}
-
+/* Freeze everything; only help-annotated regions catch the pointer. */
 .help-mode * {
-    pointer-events: none;
+  pointer-events: none;
 }
 
 .help-active {
-    pointer-events: auto !important;
+  pointer-events: auto !important;
 }
 
-/* Make sure child elements don't interfere with hover detection */
 .help-mode .help-active * {
-    pointer-events: none;
+  pointer-events: none;
 }
 
-/* Ensure knob containers capture hovers properly */
-.help-mode .knob-container {
-    pointer-events: auto !important;
-    cursor: help;
-}
-
-/* Ensure the knob and its parts don't interfere with hover detection */
-.help-mode .knob-container * {
-    pointer-events: none;
-}
-
-/* Add a larger hit area for the knobs */
-.help-mode .knob-container.help-active {
-    padding: 5px;
-    margin: -5px;
-}
-
-/* Make the hover highlight more visible */
-.help-mode .knob-container.help-active {
-    outline: 2px solid var(--neon-green);
-    box-shadow: 0 0 10px var(--neon-green);
-    border-radius: 5px;
-}
-
-/* Remove previous knob-specific help styles */
-.help-mode .knob-container.help-active {
-    outline: none;
-    box-shadow: none;
-    padding: 0;
-    margin: 10px;
-}
-
-/* Add these new styles */
-.help-mode .knob-container {
-    position: relative;
-    pointer-events: auto !important;
-}
-
-.help-mode .knob-container * {
-    pointer-events: none;
-}
-
-/* Make the entire knob area clickable */
-.help-mode .knob-surface {
-    position: absolute;
-    top: -10px;
-    left: -10px;
-    right: -10px;
-    bottom: -10px;
-    cursor: help;
-}
-
-/* Ensure help button stays visible */
+.help-mode .help-icon,
 .help-mode #helpToggle {
-    opacity: 1 !important;
-    visibility: visible !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
-/* Add to your stylesheet */
+/* Highlight: porcelain outline on the hovered/annotated control. */
+.help-mode .help-active {
+  outline: 1px solid var(--tb);
+  outline-offset: 2px;
+  box-shadow: var(--glow);
+  border-radius: 4px;
+  cursor: help;
+  position: relative;
+  z-index: 1;
+}
+
+/* Knobs get a whole-container hit area in help mode. */
+.help-mode .knob-container {
+  pointer-events: auto !important;
+  cursor: help;
+}
+
+.help-mode .knob-container * {
+  pointer-events: none;
+}
+
+.help-mode .knob-surface {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  cursor: help;
+}
+
+/* Keep the annotated regions visible and hoverable. */
 .help-mode .track,
 .help-mode .mixer,
-.help-mode .controls-container,
 .help-mode .note-selection,
 .help-mode .knob-container,
 .help-mode .fader-container,
 .help-mode .pan-container,
 .help-mode .circular-sequencer,
-.help-mode .effects-controls,
+.help-mode .pattern-sequence-controls,
 .help-mode .logic-operator,
 .help-mode .synth-controls,
 .help-mode .scale-selector,
 .help-mode .compressor-controls,
 .help-mode .comp-control {
-    visibility: visible !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 
+/* But controls themselves stay inert while help is on. */
 .help-mode button:not(#helpToggle),
 .help-mode input,
 .help-mode select {
-    pointer-events: none;
+  pointer-events: none;
 }
 
-.help-icon {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    cursor: pointer;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    transition: all 0.3s ease;
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
-    pointer-events: auto !important;
+/* ---- responsive ---- */
+
+@media (max-width: 768px) {
+  .groovebox {
+    padding: 1.1rem 0.75rem 1.25rem;
+  }
+  .transport,
+  .fx,
+  .scale-selector {
+    flex: 1 1 100%;
+  }
 }
 
-.help-icon:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+@media (max-width: 480px) {
+  .tagline {
+    display: none;
+  }
+  .fx-group {
+    width: 100%;
+  }
 }
 
-.help-icon.active {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.4);
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+/* ---- reduced motion ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }
