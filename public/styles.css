@@ -6,11 +6,13 @@
  * terminal: an outer near-black chassis (#0A0A0A) carries light gray-blue
  * "plate" panels (#9EA4A8) with hairline group-frame borders, and each
  * plate's title is engraved into it as a bracketed lowercase mono label
- * ("[transport]") rather than set as a chip on the page background. The
- * sequencer rings, note grid and VU meters are the one place light actually
- * lives: dark sunken "display" wells (a #15171C -> #08090C gradient) carrying
- * Kaolin's LED accents — ledGreen/ledCyan for the two euclidean rings,
- * ledAmber for armed/selected states, ledRed for mute. Controls (knobs,
+ * ("[transport]") rather than set as a chip on the page background. Light
+ * lives in two places: the note grid and VU meters are dark sunken "display"
+ * wells (a #15171C -> #08090C gradient), while the sequencer rings mount
+ * their step LEDs directly into the plate like real panel LEDs — unlit
+ * lenses in control-gray, lit in Kaolin's LED accents (ledGreen/ledCyan for
+ * the two euclidean rings, ledAmber for armed/selected, ledRed for mute).
+ * Controls (knobs,
  * buttons, selects) are FLAT hardware-gray (#585C5E) with hairline borders —
  * Kaolin's M8.6 pass explicitly dropped gloss and fake 3D bevels, so no glow
  * or gradient rides on anything that isn't an explicit "lit" state. The one
@@ -495,24 +497,20 @@ input[type="range"]::-moz-range-thumb {
   content: "]";
 }
 
-/* ---- circular sequencer: the display layer ----
- * A sunken dark display well (Kaolin's paintDisplay): the map gradient with
- * a hardware-border bezel and an inset/outset lip standing in for the
- * source's real two-layer bezel, since there's no extra DOM element to hang
- * it on here. */
+/* ---- circular sequencer ----
+ * The step LEDs mount straight into the plate, the way hardware actually
+ * mounts LEDs — no dark screen behind them (retheme note: the black well
+ * boxed the circles in; the rings ARE the display). An idle step is an
+ * unlit lens: a control-gray dot with the hardware edge; a lit step is the
+ * LED accent itself. */
 
 .circular-sequencer {
   width: 180px;
   height: 180px;
   margin: 0 auto;
-  padding: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, var(--display-grad-a), var(--display-grad-b));
-  border: 1px solid var(--control-border);
-  border-radius: var(--radius-display);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
 .circular-sequencer svg {
@@ -520,10 +518,10 @@ input[type="range"]::-moz-range-thumb {
   height: 100%;
 }
 
-/* Idle: dim strokes on the dark well. */
+/* Idle: an unlit LED lens set into the plate. */
 .sequencer-led {
-  fill: var(--display);
-  stroke: var(--control-border);
+  fill: var(--control-bg);
+  stroke: var(--control-edge);
   stroke-width: 1;
   transition: fill 100ms ease, stroke 100ms ease;
 }
