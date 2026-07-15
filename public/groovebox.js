@@ -3019,9 +3019,62 @@ class Track {
     }
 }
 
+// ---- iOS / mobile audio unlock -------------------------------------------
+// Desktop browsers wake an AudioContext the instant you interact; iOS Safari
+// is stricter, and worse it defaults Web Audio to the "ambient" audio session
+// — which the physical silent/ringer switch MUTES and which ducks under other
+// audio. A groovebox is a media app, so:
+//   (a) opt into the "playback" session (iOS 16.4+): ignores the silent
+//       switch and routes to the media channel, and
+//   (b) on the first real gesture, resume the context AND push one silent
+//       sample through it — the handshake iOS wants before it will make sound.
+// Binding to the first tap anywhere (not just Play) means audio is already
+// live by the time the transport starts.
+function setPlaybackAudioSession() {
+    try {
+        if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    } catch (e) {
+        /* unsupported (older iOS / other browsers): harmless */
+    }
+}
+
+let audioUnlocked = false;
+async function unlockAudio() {
+    if (audioUnlocked) return;
+    try {
+        // Resumes Tone's context synchronously within the gesture.
+        await Tone.start();
+        const ctx = Tone.context.rawContext || Tone.context;
+        if (ctx.state !== 'running' && ctx.resume) {
+            await ctx.resume();
+        }
+        // A one-sample silent buffer fully wakes the iOS audio pipeline.
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        audioUnlocked = true;
+        // iOS can "interrupt" (suspend) the context after a lock/app-switch;
+        // re-arm so the next tap unlocks again.
+        if (ctx.onstatechange === null) {
+            ctx.onstatechange = () => {
+                if (ctx.state !== 'running') audioUnlocked = false;
+            };
+        }
+    } catch (e) {
+        // leave audioUnlocked false so a later gesture retries
+    }
+}
+
+['touchend', 'pointerdown', 'mousedown', 'keydown'].forEach((evt) => {
+    document.addEventListener(evt, unlockAudio, { passive: true });
+});
+
 // Initialize the groovebox when the page loads
 let groovebox;
 document.addEventListener('DOMContentLoaded', () => {
+    setPlaybackAudioSession();
     groovebox = new Groovebox();
 });
 
