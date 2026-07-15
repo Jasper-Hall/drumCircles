@@ -6,6 +6,8 @@ class Groovebox {
         this.currentStep = 0;
         this.rows = 12; // One octave of notes
         this.lastStepTime = 0;
+        this.humanizeMs = 0; // groove: ± timing jitter applied in triggerSynth
+        this.delaySynced = false; // groove: fx delay-time slider in seconds vs tempo-synced notes
 
         // Keep existing scales
         this.scales = {
@@ -60,7 +62,9 @@ class Groovebox {
             // Transport controls
             'playButton': 'Start or stop playback of all sequencers',
             'bpmControl': 'Set the tempo in beats per minute (60-200 BPM). Higher values = faster playback',
-            
+            'swingControl': 'Swing - Delays every other 16th note for a shuffled feel. 0% is straight, higher values push the offbeats later',
+            'humanizeControl': 'Humanize - Adds a small random timing offset (in ms) to every triggered note so the groove feels less quantized',
+
             // Sequencer visualization
             'circular-sequencer': 'Visual pattern display: Outer ring shows first pattern, inner ring shows second pattern. Lit steps will trigger notes',
             
@@ -89,12 +93,26 @@ class Groovebox {
             'reverbMix': 'Reverb Mix - Amount of reverb effect. Higher values create more space and atmosphere',
             'reverbDecay': 'Reverb Decay - How long the reverb tail lasts. Higher values create longer echoes',
             'delayMix': 'Delay Mix - Amount of delay/echo effect. Higher values create more pronounced echoes',
-            'delayTime': 'Delay Time - Time between echo repeats. Higher values create longer gaps between echoes',
+            'delayTime': 'Delay Time - Time between echo repeats. Higher values create longer gaps between echoes. When "sync" is on, snaps to tempo-synced note values instead of seconds',
             'delayFeedback': 'Delay Feedback - Number of echo repeats. Higher values create more repeats',
-            
+            'delaySyncToggle': 'Sync - When on, the delay time slider snaps to tempo-synced note values (16n, 8n, 8n., 4n, 4n., 2n) instead of raw seconds',
+
             // Synth controls
             'synth-controls': 'Sound shaping controls specific to this instrument. Adjust to change the character of the sound',
-            
+            'sends-controls': 'Sends - This track\'s own reverb/delay send levels (tapped after its volume/pan/mute/solo, so a muted or faded track stays out of the mix), plus accent and gate for this track\'s groove',
+            'filter-controls': 'Filter - A lowpass filter between this track\'s synth and its mixer channel. Cutoff sets where the top end rolls off; resonance adds emphasis around the cutoff',
+
+            // smpl track
+            'sample-select': 'Sample - Choose which one-shot this track plays. Grid notes still repitch the sample up or down the scale, so it plays like a melodic percussion instrument',
+
+            // poly track
+            'wave-select': 'Waveform - Oscillator shape for this voice. The "fat" types layer several detuned oscillators (see spread) for a thicker unison sound',
+            'osc-spread-control': 'Spread - Detune spread (in cents) between the layered oscillators of a fat waveform. Wider spread = thicker, more chorused unison',
+            'chord-toggle': 'Chord - Off: cycles through this track\'s selected notes one per trigger. On: triggers every selected note together as a chord (capped at 8 voices)',
+
+            // noise track
+            'noise-color-select': 'Noise Color - Changes the frequency spectrum of the noise: white is even across all frequencies, pink rolls off highs, brown rolls off highs more steeply',
+
             // Update the note selection help content to match both classes
             'note-selection': 'Grid of available notes - Click notes to select which ones will be played by the sequencer',
             'note-button': 'Click to toggle this note on/off in the sequence. Selected notes will be played in order.',
@@ -198,18 +216,37 @@ class Groovebox {
             wet: 0.3
         });
 
-        // Create effect sends
-        this.reverbSend = new Tone.Gain(0.5);
-        this.delaySend = new Tone.Gain(0.5);
-
-        // Connect effects
-        this.reverbSend.connect(this.reverb);
-        this.delaySend.connect(this.delay);
+        // No global pre-fader sends here: each Track owns its own
+        // reverbSend/delaySend Gain nodes, tapped from that track's mixer
+        // Channel OUTPUT (see Groovebox.setupSynths()), so mute/solo/fader
+        // changes affect what reaches these shared effects.
         this.reverb.connect(this.mixer);
         this.delay.connect(this.mixer);
     }
 
     setupSynths() {
+        // Sampler track ("smpl"): 8 one-shots from the Sonic Pi sample
+        // library (public/samples/, CC0 -- see public/samples/README.md),
+        // each pre-loaded into its own Tone.Sampler mapped to C3. Only the
+        // selected sampler is ever connected into the track's signal chain
+        // (see Track.setSample()); the rest sit idle but loaded so switching
+        // is instant. Page is served from the repo root (index.html), so
+        // the URL is relative to that, not to this script.
+        this.sampleKit = [
+            { id: 'kick', label: 'kick', file: 'public/samples/drum_heavy_kick.m4a' },
+            { id: 'snare', label: 'snare', file: 'public/samples/drum_snare_hard.m4a' },
+            { id: 'hat', label: 'hat', file: 'public/samples/drum_cymbal_closed.m4a' },
+            { id: 'openhat', label: 'open hat', file: 'public/samples/drum_cymbal_open.m4a' },
+            { id: 'tom', label: 'tom', file: 'public/samples/drum_tom_mid_hard.m4a' },
+            { id: 'cowbell', label: 'cowbell', file: 'public/samples/drum_cowbell.m4a' },
+            { id: 'snap', label: 'snap', file: 'public/samples/perc_snap.m4a' },
+            { id: 'esnare', label: 'e-snare', file: 'public/samples/elec_hi_snare.m4a' }
+        ];
+        const samplers = {};
+        this.sampleKit.forEach(({ id, file }) => {
+            samplers[id] = new Tone.Sampler({ C3: file });
+        });
+
         // Initialize synths with their full parameter controls
         this.synths = {
             pluck: new Track('pluck', new Tone.PluckSynth({
@@ -292,10 +329,19 @@ class Groovebox {
                 'envelope.decay': { min: 0.001, max: 2, step: 0.001, default: 1.4 },
                 'envelope.release': { min: 0.001, max: 2, step: 0.001, default: 0.2 }
             }, this),
+            // NOTE: the 2-arg `new Tone.PolySynth(voice, options)` form maps
+            // `options` entirely to per-voice construction options (Tone
+            // 14.8.49's optionsFromArguments keys are ["voice","options"]
+            // for that arity) -- a maxPolyphony field nested in there is
+            // silently ignored, not read as the instance's polyphony cap.
+            // maxPolyphony is set as a plain property right after
+            // construction below instead, which _getNextAvailableVoice()
+            // reads dynamically and does take effect.
             poly: new Track('poly', new Tone.PolySynth(Tone.Synth, {
-                maxPolyphony: 4,
                 oscillator: {
-                    type: 'sine'
+                    type: 'fatsawtooth',
+                    count: 3,
+                    spread: 24
                 },
                 envelope: {
                     attack: 0.05,
@@ -320,8 +366,21 @@ class Groovebox {
                 'envelope.attack': { min: 0.001, max: 1, step: 0.001, default: 0.005 },
                 'envelope.decay': { min: 0.001, max: 1, step: 0.001, default: 0.1 },
                 'envelope.sustain': { min: 0, max: 1, step: 0.01, default: 0 }
-            }, this)
+            }, this),
+            smpl: new Track('smpl', samplers.kick, {}, this)
         };
+
+        // Wire up the smpl track's sample bank (see Track.setSample() /
+        // Track.createControls()) now that the Track exists. Only samplers.kick
+        // is connected (done in the Track constructor's generic
+        // `this.synth.connect(this.filter)`); the rest stay loaded but idle.
+        this.synths.smpl.samplers = samplers;
+        this.synths.smpl.sampleKit = this.sampleKit;
+        this.synths.smpl.currentSampleId = 'kick';
+
+        // See the NOTE above poly's constructor call: maxPolyphony has to be
+        // set here, as a plain property, to actually take effect.
+        this.synths.poly.synth.maxPolyphony = 8;
 
         // Create controls for each track after initialization
         Object.values(this.synths).forEach(track => {
@@ -333,22 +392,29 @@ class Groovebox {
         
         // Set up mixer channels and connect synths
         Object.entries(this.synths).forEach(([name, track]) => {
-            // Create mixer channel
+            // Create mixer channel. poly runs a touch quieter by default --
+            // fat saws (x3, chorused) plus optional chord mode are much
+            // louder than the other tracks' single-oscillator/sample voices.
             const channel = new Tone.Channel({
-                volume: -20,
+                volume: name === 'poly' ? -23 : -20,
                 pan: 0,
                 mute: false,
                 solo: false
             }).connect(this.mixer);
             
             this.mixerChannels[name] = channel;
-            
-            // Disconnect any existing connections and reconnect through the mixer channel
-            track.synth.disconnect();
-            track.synth.connect(channel);
-            track.synth.connect(this.reverbSend);
-            track.synth.connect(this.delaySend);
-            
+
+            // Signal path: synth -> filter (connected in the Track
+            // constructor) -> channel -> mixer (dry, connected above) and,
+            // in parallel, this track's own reverb/delay sends. The sends
+            // tap the channel OUTPUT (post volume/pan/mute/solo) so a muted
+            // or faded-down track doesn't bleed into the shared reverb/delay.
+            track.filter.connect(channel);
+            channel.connect(track.reverbSend);
+            track.reverbSend.connect(this.reverb);
+            channel.connect(track.delaySend);
+            track.delaySend.connect(this.delay);
+
             // Initialize selectedNotes for the track if not already set
             if (!track.selectedNotes) {
                 track.selectedNotes = new Set([0, 4, 7]); // Default to major triad
@@ -403,6 +469,31 @@ class Groovebox {
                 Tone.Transport.bpm.value = parseFloat(e.target.value);
             });
         }
+
+        // Swing: 0-100% mapped to Tone.Transport.swing's 0-1 range.
+        Tone.Transport.swingSubdivision = '16n';
+        const swingControl = document.getElementById('swingControl');
+        if (swingControl) {
+            swingControl.addEventListener('input', (e) => {
+                const percent = parseFloat(e.target.value);
+                Tone.Transport.swing = percent / 100;
+                const display = e.target.parentElement.querySelector('.value-display');
+                if (display) display.textContent = `${Math.round(percent)}%`;
+                this.broadcastStateChange('TRANSPORT_CHANGE', { swing: percent });
+            });
+        }
+
+        // Humanize: ms of +/- timing jitter, applied per-note in triggerSynth.
+        const humanizeControl = document.getElementById('humanizeControl');
+        if (humanizeControl) {
+            humanizeControl.addEventListener('input', (e) => {
+                const ms = parseFloat(e.target.value);
+                this.humanizeMs = ms;
+                const display = e.target.parentElement.querySelector('.value-display');
+                if (display) display.textContent = `${Math.round(ms)}ms`;
+                this.broadcastStateChange('TRANSPORT_CHANGE', { humanize: ms });
+            });
+        }
     }
 
     repeat(time) {
@@ -420,7 +511,7 @@ class Groovebox {
         Object.entries(this.synths).forEach(([name, track]) => {
             if (track.getStepValue(step)) {
                 track.currentNoteIndex = step;
-                this.triggerSynth(name, track, time);
+                this.triggerSynth(name, track, time, step);
             }
         });
 
@@ -436,10 +527,49 @@ class Groovebox {
         this.currentStep += 1;
     }
 
-    triggerSynth(name, track, time) {
+    triggerSynth(name, track, time, step = this.currentStep) {
+        // Humanize: small +/- timing jitter (ms -> seconds). Clamped so the
+        // scheduled time is never negative regardless of jitter direction.
+        const humanizeSeconds = (this.humanizeMs || 0) / 1000;
+        const jitter = humanizeSeconds > 0 ? (Math.random() * 2 - 1) * humanizeSeconds : 0;
+        const triggerTime = Math.max(0, time + jitter);
+
+        // Accent/velocity: the euclidean downbeat (logical step 0 of
+        // whichever pattern -- outer or inner -- is currently active) always
+        // hits at full velocity; other steps sit at (1 - accent) with a
+        // small +/-0.08 random wobble so the groove doesn't feel robotic.
+        let velocity;
+        if (track.isDownbeat(step)) {
+            velocity = 1.0;
+        } else {
+            const base = 1 - track.accent;
+            const wobble = (Math.random() * 2 - 1) * 0.08;
+            velocity = Math.min(1, Math.max(0, base + wobble));
+        }
+
+        // Gate: note duration scales off the 16n grid slot. Tone 14.8.49
+        // signature notes (verified against source):
+        //  - Instrument.triggerAttackRelease(note, duration, time, velocity)
+        //    covers PluckSynth, FMSynth, MembraneSynth, MetalSynth. Velocity
+        //    reaches the amplitude envelope for all of them EXCEPT
+        //    PluckSynth, whose triggerAttack(note, time) signature has no
+        //    velocity parameter at all -- it's accepted here harmlessly but
+        //    has no audible effect on a plucked string.
+        //  - PolySynth.triggerAttackRelease(notes, duration, time, velocity)
+        //  - NoiseSynth.triggerAttackRelease(duration, time, velocity) --
+        //    note this one has NO note argument.
+        const gateSeconds = track.gate * Tone.Time('16n').toSeconds();
+
+        // Sampler loading guard: the smpl track's currently-selected one-shot
+        // may not have finished decoding yet (samples load async). Skip the
+        // trigger silently rather than let Tone throw on an empty buffer.
+        if (track.synth instanceof Tone.Sampler && !track.synth.loaded) {
+            return;
+        }
+
         // Special handling for noise synth which doesn't need note information
         if (track.synth instanceof Tone.NoiseSynth) {
-            track.synth.triggerAttackRelease('16n', time);
+            track.synth.triggerAttackRelease(gateSeconds, triggerTime, velocity);
             return;
         }
 
@@ -448,9 +578,9 @@ class Groovebox {
         const notes = track.getNotesToPlay(this.currentScale, rootNote);
         if (notes.length > 0) {
             if (track.synth instanceof Tone.PolySynth) {
-                track.synth.triggerAttackRelease(notes, '16n', time);
+                track.synth.triggerAttackRelease(notes, gateSeconds, triggerTime, velocity);
             } else {
-                track.synth.triggerAttackRelease(notes[0], '16n', time);
+                track.synth.triggerAttackRelease(notes[0], gateSeconds, triggerTime, velocity);
             }
         }
     }
@@ -576,15 +706,23 @@ class Groovebox {
         channel.className = 'mixer-channel';
         channel.dataset.channel = name;
 
+        // Seed the fader's displayed value from the actual channel gain
+        // (mixerChannels is populated before createMixerUI() runs) rather
+        // than a hardcoded -20, so per-track defaults like poly's -23 show
+        // correctly instead of just being silently correct under the hood.
+        const faderDefault = !isMaster && this.mixerChannels[name]
+            ? this.mixerChannels[name].volume.value
+            : -20;
+
         channel.innerHTML = `
             <h4>${name}</h4>
             <div class="fader-container">
                 <div class="vu-meter">
                     <div class="vu-meter-fill"></div>
                 </div>
-                <input type="range" class="fader" 
+                <input type="range" class="fader"
                        data-channel="${name}"
-                       min="-60" max="0" value="-20"
+                       min="-60" max="0" value="${faderDefault}"
                        orient="vertical">
             </div>
             ${!isMaster ? `
@@ -732,7 +870,12 @@ class Groovebox {
     }
 
     setupSynthParameterListeners() {
-        document.querySelectorAll('.param-control input[type="range"]').forEach(control => {
+        // :not([data-track-control]) excludes the newer per-track sends/
+        // filter/accent/gate sliders, which reuse the .param-control markup
+        // for styling but manage their own apply/display/broadcast logic
+        // (see Track.createParamControl) since some of them (filter cutoff)
+        // need non-linear value mapping this generic handler doesn't do.
+        document.querySelectorAll('.param-control input[type="range"]:not([data-track-control])').forEach(control => {
             control.addEventListener('input', (e) => {
                 const synthName = e.target.dataset.synth;
                 const param = e.target.dataset.param;
@@ -754,7 +897,10 @@ class Groovebox {
                 try {
                     if (param.includes('.')) {
                         const [category, property] = param.split('.');
-                        if (track.synth[category]) {
+                        if (track.synth instanceof Tone.PolySynth) {
+                            // PolySynth exposes no per-voice objects; set() fans out to voices
+                            track.synth.set({ [category]: { [property]: value } });
+                        } else if (track.synth[category]) {
                             if (track.synth[category] instanceof Tone.Signal) {
                                 track.synth[category].value = value;
                             } else {
@@ -831,10 +977,9 @@ class Groovebox {
             });
         }
 
-        // Delay controls
+        // Delay mix & feedback (unsynced numeric params)
         const delayControls = {
             'delayMix': { param: 'wet', signal: true },
-            'delayTime': { param: 'delayTime', signal: true },
             'delayFeedback': { param: 'feedback', signal: true }
         };
 
@@ -856,12 +1001,64 @@ class Groovebox {
                 });
             }
         });
+
+        // Delay time: seconds (0-1) by default, or 6 tempo-synced note
+        // values when the "sync" toggle is on.
+        const delayTimeControl = document.getElementById('delayTime');
+        const delaySyncToggle = document.getElementById('delaySyncToggle');
+        const delaySyncSubdivisions = ['16n', '8n', '8n.', '4n', '4n.', '2n'];
+
+        const applyDelayTime = () => {
+            if (!delayTimeControl) return;
+            if (this.delaySynced) {
+                const index = Math.min(
+                    Math.max(Math.round(parseFloat(delayTimeControl.value)), 0),
+                    delaySyncSubdivisions.length - 1
+                );
+                const notation = delaySyncSubdivisions[index];
+                this.delay.delayTime.value = notation;
+                this.updateEffectDisplay(delayTimeControl, notation);
+            } else {
+                const seconds = parseFloat(delayTimeControl.value);
+                this.delay.delayTime.value = seconds;
+                this.updateEffectDisplay(delayTimeControl, seconds);
+            }
+        };
+
+        if (delayTimeControl) {
+            delayTimeControl.addEventListener('input', applyDelayTime);
+        }
+
+        if (delaySyncToggle) {
+            delaySyncToggle.addEventListener('click', () => {
+                this.delaySynced = !this.delaySynced;
+                delaySyncToggle.classList.toggle('active', this.delaySynced);
+                if (!delayTimeControl) return;
+
+                if (this.delaySynced) {
+                    delayTimeControl.min = 0;
+                    delayTimeControl.max = delaySyncSubdivisions.length - 1;
+                    delayTimeControl.step = 1;
+                    delayTimeControl.value = 1; // '8n', close to the 0.5s default
+                } else {
+                    // Seed the slider with the seconds-equivalent of whatever
+                    // notated value was last set, so flipping sync off doesn't
+                    // jump the delay time unexpectedly.
+                    const currentSeconds = Tone.Time(this.delay.delayTime.value).toSeconds();
+                    delayTimeControl.min = 0;
+                    delayTimeControl.max = 1;
+                    delayTimeControl.step = 0.01;
+                    delayTimeControl.value = Math.min(1, Math.max(0, currentSeconds));
+                }
+                applyDelayTime();
+            });
+        }
     }
 
     updateEffectDisplay(element, value) {
         const display = element.parentElement.querySelector('.value-display');
         if (display) {
-            display.textContent = value.toFixed(2);
+            display.textContent = typeof value === 'number' ? value.toFixed(2) : value;
         }
     }
 
@@ -980,10 +1177,98 @@ class Groovebox {
 
         console.log(`Updating synth param: ${synthName}.${param} = ${value}`);
 
+        // Newer per-track controls (sends, filter, accent, gate) live on the
+        // Track itself rather than on track.synth; handle them here (value
+        // is always the "real" applied value -- e.g. Hz for filter.frequency,
+        // not the slider's raw 0-1 log position) and update their UI, then
+        // return before the track.synth-oriented logic below.
+        if (param === 'filter.frequency') {
+            if (track.filter) track.filter.frequency.value = value;
+            const input = track.controlsContainer?.querySelector('input[data-param="filter.frequency"]');
+            if (input) {
+                input.value = track.freqToNorm(value);
+                const display = input.parentElement.querySelector('.value-display');
+                if (display) display.textContent = track.formatFrequency(value);
+            }
+            return;
+        }
+        if (param === 'filter.Q') {
+            if (track.filter) track.filter.Q.value = value;
+            const input = track.controlsContainer?.querySelector('input[data-param="filter.Q"]');
+            if (input) {
+                input.value = value;
+                const display = input.parentElement.querySelector('.value-display');
+                if (display) display.textContent = value.toFixed(1);
+            }
+            return;
+        }
+        if (param === 'reverbSend' || param === 'delaySend') {
+            if (track[param]) track[param].gain.value = value;
+            const input = track.controlsContainer?.querySelector(`input[data-param="${param}"]`);
+            if (input) {
+                input.value = value;
+                const display = input.parentElement.querySelector('.value-display');
+                if (display) display.textContent = value.toFixed(2);
+            }
+            return;
+        }
+        if (param === 'accent' || param === 'gate') {
+            track[param] = value;
+            const input = track.controlsContainer?.querySelector(`input[data-param="${param}"]`);
+            if (input) {
+                input.value = value;
+                const display = input.parentElement.querySelector('.value-display');
+                if (display) display.textContent = value.toFixed(2);
+            }
+            return;
+        }
+
+        // String-valued select controls (sample choice, oscillator
+        // waveform, noise color) and the chord toggle -- handled here,
+        // before the numeric fallback below, since that fallback calls
+        // value.toFixed() which throws on a string.
+        if (param === 'sample') {
+            track.setSample(value);
+            const select = track.controlsContainer?.querySelector('select[data-param="sample"]');
+            if (select) select.value = value;
+            return;
+        }
+        if (param === 'chord') {
+            track.chordMode = value;
+            const btn = track.controlsContainer?.querySelector('.chord-toggle');
+            if (btn) btn.classList.toggle('active', value);
+            return;
+        }
+        if (param === 'oscillator.type') {
+            if (track.synth.set) track.synth.set({ oscillator: { type: value } });
+            const select = track.controlsContainer?.querySelector('select[data-param="oscillator.type"]');
+            if (select) select.value = value;
+            return;
+        }
+        if (param === 'oscillator.spread') {
+            if (track.synth.set) track.synth.set({ oscillator: { spread: value } });
+            const input = track.controlsContainer?.querySelector('input[data-param="oscillator.spread"]');
+            if (input) {
+                input.value = value;
+                const display = input.parentElement.querySelector('.value-display');
+                if (display) display.textContent = value;
+            }
+            return;
+        }
+        if (param === 'noise.type') {
+            if (track.synth.noise) track.synth.noise.type = value;
+            const select = track.controlsContainer?.querySelector('select[data-param="noise.type"]');
+            if (select) select.value = value;
+            return;
+        }
+
         // Update the synth parameter
         if (param.includes('.')) {
             const [category, property] = param.split('.');
-            if (track.synth[category]) {
+            if (track.synth instanceof Tone.PolySynth) {
+                // PolySynth exposes no per-voice objects; set() fans out to voices
+                track.synth.set({ [category]: { [property]: value } });
+            } else if (track.synth[category]) {
                 // Handle envelope parameters properly
                 if (track.synth[category] instanceof Tone.Envelope) {
                     track.synth[category][property] = value;
@@ -1120,6 +1405,24 @@ class Groovebox {
             if (playButton) {
                 playButton.textContent = data.isPlaying ? 'Stop' : 'Play';
                 playButton.classList.toggle('active', data.isPlaying);
+            }
+        }
+        if (typeof data.swing === 'number' && !Number.isNaN(data.swing)) {
+            Tone.Transport.swing = data.swing / 100;
+            const swingControl = document.getElementById('swingControl');
+            if (swingControl) {
+                swingControl.value = data.swing;
+                const display = swingControl.parentElement.querySelector('.value-display');
+                if (display) display.textContent = `${Math.round(data.swing)}%`;
+            }
+        }
+        if (typeof data.humanize === 'number' && !Number.isNaN(data.humanize)) {
+            this.humanizeMs = data.humanize;
+            const humanizeControl = document.getElementById('humanizeControl');
+            if (humanizeControl) {
+                humanizeControl.value = data.humanize;
+                const display = humanizeControl.parentElement.querySelector('.value-display');
+                if (display) display.textContent = `${Math.round(data.humanize)}ms`;
             }
         }
     }
@@ -1615,13 +1918,103 @@ class Track {
         // Controls container
         this.controlsContainer = null;
 
-        // Connect synth to effects and output
-        this.synth.connect(grooveboxInstance.reverbSend);
-        this.synth.connect(grooveboxInstance.delaySend);
-        this.synth.connect(grooveboxInstance.mixer);
+        // Per-track lowpass filter, sitting between the synth and this
+        // track's mixer Channel. Defaults fully open (18kHz, gentle Q) so
+        // it's audibly transparent until touched.
+        this.filter = new Tone.Filter({
+            type: 'lowpass',
+            frequency: 18000,
+            Q: 0.7,
+            rolloff: -12
+        });
+        this.minFilterFreq = 80;
+        this.maxFilterFreq = 18000;
+
+        // Per-track FX sends. These get connected to this track's mixer
+        // Channel OUTPUT (post volume/pan/mute/solo) in
+        // Groovebox.setupSynths(), and onward to the shared global
+        // reverb/delay. ~0.35 default roughly preserves the old wet balance
+        // (the previous code accidentally doubled the send level via a
+        // duplicate connection into a shared 0.5-gain send).
+        this.reverbSend = new Tone.Gain(0.35);
+        this.delaySend = new Tone.Gain(0.35);
+
+        // Groove: per-hit accent (velocity contrast) and gate (note length
+        // as a multiple of the 16n grid slot).
+        this.accent = 0.4;
+        this.gate = 1.0;
+
+        // Chord mode (poly track only -- toggle button in createControls()):
+        // off cycles one selected note per trigger (default, existing
+        // behavior); on triggers all selected notes as a chord. Harmless
+        // default on every other track since nothing reads it there.
+        this.chordMode = false;
+
+        // Sample bank (smpl track only): populated by Groovebox.setupSynths()
+        // after construction with { samplers: {id: Tone.Sampler}, sampleKit:
+        // [{id,label,file}], currentSampleId }. See setSample() below.
+        this.samplers = null;
+        this.sampleKit = null;
+        this.currentSampleId = null;
+
+        // Signal path: synth -> filter. The filter connects onward to this
+        // track's mixer Channel once Groovebox.setupSynths() creates it.
+        this.synth.connect(this.filter);
 
         this.innerStep = 0;  // Add separate step counters
         this.outerStep = 0;
+    }
+
+    // --- Filter cutoff <-> slider mapping (log-feel: 80Hz-18kHz) ---
+    freqToNorm(freq) {
+        const clamped = Math.min(this.maxFilterFreq, Math.max(this.minFilterFreq, freq));
+        return Math.log(clamped / this.minFilterFreq) / Math.log(this.maxFilterFreq / this.minFilterFreq);
+    }
+
+    normToFreq(norm) {
+        const clamped = Math.min(1, Math.max(0, norm));
+        return this.minFilterFreq * Math.pow(this.maxFilterFreq / this.minFilterFreq, clamped);
+    }
+
+    formatFrequency(freq) {
+        if (freq >= 1000) {
+            return (freq / 1000).toFixed(1) + 'k';
+        }
+        return Math.round(freq).toString();
+    }
+
+    // smpl track only: swap which pre-loaded Tone.Sampler is actually wired
+    // into the signal chain (synth -> filter). The other 7 samplers stay
+    // instantiated and loaded, just disconnected, so switching is instant
+    // and never re-triggers a network fetch.
+    setSample(sampleId) {
+        if (!this.samplers || !this.samplers[sampleId]) return;
+        if (this.synth) {
+            this.synth.disconnect();
+        }
+        this.synth = this.samplers[sampleId];
+        this.synth.connect(this.filter);
+        this.currentSampleId = sampleId;
+    }
+
+    // Is `step` (Groovebox's raw incrementing step counter) the logical
+    // first step -- the euclidean downbeat -- of whichever pattern (outer
+    // or inner) is currently active? Mirrors the active-pattern/step-index
+    // math in getStepValue()/updateVisualization().
+    isDownbeat(step) {
+        const pattern1Length = this.outerSequencer.steps;
+        const pattern2Length = this.innerSequencer.steps;
+        const totalPatternLength = (pattern1Length + pattern2Length) > 0
+            ? (pattern1Length + pattern2Length) : 1;
+        const cyclePosition = step % totalPatternLength;
+        const activePattern = (pattern1Length > 0 && cyclePosition < pattern1Length) ? 0 : 1;
+
+        const sequencer = activePattern === 0 ? this.outerSequencer : this.innerSequencer;
+        const stepIndex = activePattern === 0 ? cyclePosition : cyclePosition - pattern1Length;
+
+        if (!sequencer || sequencer.steps <= 0) return false;
+        const rotatedStep = (stepIndex - sequencer.rotation + sequencer.steps) % sequencer.steps;
+        return rotatedStep === 0;
     }
 
     createSequencerSVG() {
@@ -1819,7 +2212,14 @@ class Track {
         });
 
         if (notes.length === 0) return [];
-        
+
+        // Chord mode (poly track only -- see the "chord" toggle in
+        // createControls()): trigger every selected note together instead of
+        // cycling one per hit. Capped at 8 to match PolySynth's maxPolyphony.
+        if (this.chordMode) {
+            return notes.slice(0, 8);
+        }
+
         this.currentNoteIndex = (this.currentNoteIndex + 1) % notes.length;
         return [notes[this.currentNoteIndex]];
     }
@@ -1871,10 +2271,261 @@ class Track {
             synthContainer.appendChild(paramControl);
         });
 
+        // smpl: which one-shot this track's Sampler plays. Grid notes still
+        // repitch the sample up/down the scale (playbackRate trick built
+        // into Tone.Sampler) -- melodic percussion.
+        if (this.name === 'smpl' && this.sampleKit) {
+            synthContainer.appendChild(this.createSelectControl({
+                label: 'sample',
+                parameter: 'sample',
+                extraClass: 'sample-select',
+                options: this.sampleKit.map(s => ({ value: s.id, label: s.label })),
+                value: this.currentSampleId || 'kick',
+                onInput: (value) => this.setSample(value)
+            }));
+        }
+
+        // poly: waveform + fat-oscillator spread, and a chord-mode toggle.
+        // PolySynth has no direct .oscillator property (only its dummy/voice
+        // instances do) -- Tone's supported way to change it for every
+        // voice (current + future) is PolySynth.set(), not direct property
+        // assignment, hence the custom onInput here rather than routing
+        // through the generic this.params loop above.
+        if (this.name === 'poly') {
+            synthContainer.appendChild(this.createSelectControl({
+                label: 'wave',
+                parameter: 'oscillator.type',
+                extraClass: 'wave-select',
+                options: [
+                    { value: 'fatsawtooth', label: 'fatsawtooth' },
+                    { value: 'fatsquare', label: 'fatsquare' },
+                    { value: 'fattriangle', label: 'fattriangle' },
+                    { value: 'sine', label: 'sine' }
+                ],
+                value: this.synth.options?.oscillator?.type || 'fatsawtooth',
+                onInput: (value) => this.synth.set({ oscillator: { type: value } })
+            }));
+
+            const spreadControl = this.createParamControl({
+                label: 'spread',
+                min: 0, max: 60, step: 1,
+                value: this.synth.options?.oscillator?.spread ?? 24,
+                parameter: 'oscillator.spread',
+                onInput: (value) => { this.synth.set({ oscillator: { spread: value } }); }
+            });
+            spreadControl.classList.add('osc-spread-control');
+            synthContainer.appendChild(spreadControl);
+
+            const chordToggle = document.createElement('button');
+            chordToggle.type = 'button';
+            chordToggle.className = 'toggle-btn chord-toggle';
+            chordToggle.textContent = 'chord';
+            chordToggle.title = 'trigger all selected notes together instead of cycling';
+            chordToggle.classList.toggle('active', this.chordMode);
+            chordToggle.addEventListener('click', () => {
+                this.chordMode = !this.chordMode;
+                chordToggle.classList.toggle('active', this.chordMode);
+                if (this.groovebox && this.groovebox.broadcastStateChange) {
+                    this.groovebox.broadcastStateChange('SYNTH_PARAM_CHANGE', {
+                        trackId: this.name,
+                        parameter: 'chord',
+                        value: this.chordMode
+                    });
+                }
+            });
+            synthContainer.appendChild(chordToggle);
+        }
+
+        // noise: white/pink/brown changes Tone.Noise's spectrum.
+        if (this.name === 'noise') {
+            synthContainer.appendChild(this.createSelectControl({
+                label: 'color',
+                parameter: 'noise.type',
+                extraClass: 'noise-color-select',
+                options: [
+                    { value: 'white', label: 'white' },
+                    { value: 'pink', label: 'pink' },
+                    { value: 'brown', label: 'brown' }
+                ],
+                value: this.synth.noise?.type || 'white',
+                onInput: (value) => { if (this.synth.noise) this.synth.noise.type = value; }
+            }));
+        }
+
         container.appendChild(synthContainer);
+
+        // Sends: this track's own post-fader reverb/delay levels, plus
+        // accent and gate -- the groove controls read best sitting next to
+        // the sends rather than crowding the euclidean knobs above.
+        const sendsContainer = document.createElement('div');
+        sendsContainer.className = 'sends-controls';
+        sendsContainer.appendChild(this.createParamControl({
+            label: 'reverb',
+            min: 0, max: 1, step: 0.01,
+            value: this.reverbSend.gain.value,
+            parameter: 'reverbSend',
+            onInput: (value) => { this.reverbSend.gain.value = value; }
+        }));
+        sendsContainer.appendChild(this.createParamControl({
+            label: 'delay',
+            min: 0, max: 1, step: 0.01,
+            value: this.delaySend.gain.value,
+            parameter: 'delaySend',
+            onInput: (value) => { this.delaySend.gain.value = value; }
+        }));
+        sendsContainer.appendChild(this.createParamControl({
+            label: 'accent',
+            min: 0, max: 1, step: 0.01,
+            value: this.accent,
+            parameter: 'accent',
+            onInput: (value) => { this.accent = value; }
+        }));
+        sendsContainer.appendChild(this.createParamControl({
+            label: 'gate',
+            min: 0.1, max: 2, step: 0.01,
+            value: this.gate,
+            parameter: 'gate',
+            onInput: (value) => { this.gate = value; }
+        }));
+        container.appendChild(sendsContainer);
+
+        // Filter: per-track lowpass between the synth and its mixer channel.
+        const filterContainer = document.createElement('div');
+        filterContainer.className = 'filter-controls';
+        filterContainer.appendChild(this.createParamControl({
+            label: 'cutoff',
+            min: 0, max: 1, step: 0.001,
+            value: this.freqToNorm(this.filter.frequency.value),
+            initialApplied: this.filter.frequency.value,
+            parameter: 'filter.frequency',
+            format: (freq) => this.formatFrequency(freq),
+            onInput: (raw) => {
+                const freq = this.normToFreq(raw);
+                this.filter.frequency.value = freq;
+                return freq;
+            }
+        }));
+        filterContainer.appendChild(this.createParamControl({
+            label: 'resonance',
+            min: 0.1, max: 12, step: 0.1,
+            value: this.filter.Q.value,
+            parameter: 'filter.Q',
+            format: (v) => v.toFixed(1),
+            onInput: (value) => { this.filter.Q.value = value; }
+        }));
+        container.appendChild(filterContainer);
 
         this.controlsContainer = container;
         return container;
+    }
+
+    // Builds one .param-control row (reusing the same markup/CSS as the
+    // per-synth params) for a track-level control (sends, filter, accent,
+    // gate). Unlike the per-synth params, these manage their own listener
+    // rather than going through Groovebox.setupSynthParameterListeners() --
+    // marked with data-track-control so that generic delegated handler
+    // skips them (see setupSynthParameterListeners) -- because some of them
+    // (filter cutoff) need a non-linear raw-slider-value -> applied-value
+    // mapping and a custom display formatter that the generic handler
+    // doesn't support.
+    //
+    // `onInput(rawValue)` should apply the change and may return the actual
+    // applied value if it differs from the raw slider value (e.g. Hz for
+    // the log-mapped cutoff slider); if it returns undefined, the raw value
+    // is assumed to be the applied value. `initialApplied` is that same
+    // "applied" value at construction time, for seeding the display when it
+    // differs from the raw slider `value` (again, the log-mapped cutoff);
+    // it defaults to `value` for the common case where raw === applied.
+    createParamControl({ label, min, max, step, value, parameter, format, onInput, initialApplied }) {
+        const paramControl = document.createElement('div');
+        paramControl.className = 'param-control';
+
+        const labelEl = document.createElement('label');
+        labelEl.textContent = label;
+        paramControl.appendChild(labelEl);
+
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = min;
+        input.max = max;
+        input.step = step;
+        input.value = value;
+        input.dataset.synth = this.name;
+        input.dataset.param = parameter;
+        input.dataset.trackControl = 'true';
+        paramControl.appendChild(input);
+
+        const valueDisplay = document.createElement('div');
+        valueDisplay.className = 'value-display';
+        const displaySeed = initialApplied === undefined ? value : initialApplied;
+        valueDisplay.textContent = format ? format(displaySeed) : Number(displaySeed).toFixed(2);
+        paramControl.appendChild(valueDisplay);
+
+        input.addEventListener('input', (e) => {
+            const raw = parseFloat(e.target.value);
+            const applied = onInput(raw);
+            const appliedValue = applied === undefined ? raw : applied;
+            valueDisplay.textContent = format ? format(appliedValue, raw) : appliedValue.toFixed(2);
+
+            if (this.groovebox && this.groovebox.broadcastStateChange) {
+                this.groovebox.broadcastStateChange('SYNTH_PARAM_CHANGE', {
+                    trackId: this.name,
+                    parameter: parameter,
+                    value: appliedValue
+                });
+            }
+        });
+
+        return paramControl;
+    }
+
+    // Select-control support: a dropdown counterpart to createParamControl()
+    // above, for track params whose value is a string rather than a number
+    // (sample choice, oscillator waveform, noise color). Same
+    // .param-control row shape and the same data-track-control marker (so
+    // Groovebox.setupSynthParameterListeners' generic range-input delegate
+    // skips it -- moot here anyway since that selector only matches
+    // input[type="range"]), and it broadcasts SYNTH_PARAM_CHANGE the same
+    // way, just with a string `value`. `extraClass` names the <select> for
+    // both help-system targeting (see Groovebox.helpContent) and the shared
+    // #scaleSelect/.logic-operator select styling in styles.css.
+    createSelectControl({ label, parameter, options, value, onInput, extraClass }) {
+        const paramControl = document.createElement('div');
+        paramControl.className = 'param-control param-select';
+
+        const labelEl = document.createElement('label');
+        labelEl.textContent = label;
+        paramControl.appendChild(labelEl);
+
+        const select = document.createElement('select');
+        select.className = extraClass ? `track-select ${extraClass}` : 'track-select';
+        select.dataset.synth = this.name;
+        select.dataset.param = parameter;
+        select.dataset.trackControl = 'true';
+
+        options.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.label;
+            if (opt.value === value) option.selected = true;
+            select.appendChild(option);
+        });
+        paramControl.appendChild(select);
+
+        select.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (onInput) onInput(val);
+
+            if (this.groovebox && this.groovebox.broadcastStateChange) {
+                this.groovebox.broadcastStateChange('SYNTH_PARAM_CHANGE', {
+                    trackId: this.name,
+                    parameter: parameter,
+                    value: val
+                });
+            }
+        });
+
+        return paramControl;
     }
 
     createSequencerControls(type) {
