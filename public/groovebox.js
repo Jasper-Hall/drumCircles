@@ -86,6 +86,7 @@ class Groovebox {
             'fader-container[data-channel="master"]': 'Master Volume Control - Adjusts the overall volume of all tracks',
             'fader-container:not([data-channel="master"])': 'Track volume control. Drag up/down to adjust how loud this track plays',
             'pan-container': 'Stereo position control. Left = sound comes from left speaker, Right = sound comes from right speaker',
+            'mixer-sends': 'Sends - This channel\'s own reverb/delay send levels, tapped after its volume/pan/mute/solo so a muted or faded-down track stays out of the shared reverb/delay',
             'mixer-channel button.mute': 'Mute button (M) - Click to silence this track',
             'mixer-channel button.solo': 'Solo button (S) - Click to hear only this track',
             
@@ -99,7 +100,7 @@ class Groovebox {
 
             // Synth controls
             'synth-controls': 'Sound shaping controls specific to this instrument. Adjust to change the character of the sound',
-            'sends-controls': 'Sends - This track\'s own reverb/delay send levels (tapped after its volume/pan/mute/solo, so a muted or faded track stays out of the mix), plus accent and gate for this track\'s groove',
+            'groove-controls': 'Groove - Accent (velocity contrast) and gate (note length as a multiple of the 16th-note grid slot) for this track\'s hits. Reverb/delay send levels live on this track\'s mixer channel strip now',
             'filter-controls': 'Filter - A lowpass filter between this track\'s synth and its mixer channel. Cutoff sets where the top end rolls off; resonance adds emphasis around the cutoff',
 
             // smpl track
@@ -458,6 +459,7 @@ class Groovebox {
                     this.isPlaying = true;
                     newPlayButton.textContent = 'Stop';
                 }
+                newPlayButton.classList.toggle('active', this.isPlaying);
             } catch (error) {
                 console.error('Error starting audio context:', error);
             }
@@ -714,6 +716,15 @@ class Groovebox {
             ? this.mixerChannels[name].volume.value
             : -20;
 
+        // Same idea for the send sliders: seed from this track's actual
+        // reverbSend/delaySend Gain nodes (this.synths is populated by
+        // setupSynths(), which runs before createUI() -> createMixerChannel(),
+        // so the Track object already exists here) rather than assuming the
+        // 0.35 default, in case it's ever changed per-track.
+        const track = !isMaster ? this.synths[name] : null;
+        const reverbSendDefault = track ? track.reverbSend.gain.value : 0.35;
+        const delaySendDefault = track ? track.delaySend.gain.value : 0.35;
+
         channel.innerHTML = `
             <h4>${name}</h4>
             <div class="fader-container">
@@ -727,9 +738,23 @@ class Groovebox {
             </div>
             ${!isMaster ? `
                 <div class="pan-container">
-                    <input type="range" class="pan" 
+                    <input type="range" class="pan"
                            data-channel="${name}"
                            min="-1" max="1" step="0.1" value="0">
+                </div>
+                <div class="mixer-sends">
+                    <div class="send-row">
+                        <label>rev</label>
+                        <input type="range" class="send-slider"
+                               data-channel="${name}" data-send="reverbSend"
+                               min="0" max="1" step="0.01" value="${reverbSendDefault}">
+                    </div>
+                    <div class="send-row">
+                        <label>dly</label>
+                        <input type="range" class="send-slider"
+                               data-channel="${name}" data-send="delaySend"
+                               min="0" max="1" step="0.01" value="${delaySendDefault}">
+                    </div>
                 </div>
                 <button class="mute" data-channel="${name}">M</button>
                 <button class="solo" data-channel="${name}">S</button>
@@ -842,6 +867,34 @@ class Groovebox {
                         type: 'MIXER_CHANGE',
                         channelId: channel,
                         parameter: 'pan',
+                        value: value
+                    }));
+                }
+            });
+        });
+
+        // Reverb/delay sends -- moved here from the track panel, onto each
+        // channel's mixer strip. Same Gain nodes (track.reverbSend/
+        // delaySend) the old per-track sliders drove, and the same
+        // SYNTH_PARAM_CHANGE broadcast shape, so remote peers and
+        // updateSynthParam()'s remote-update path don't need to know these
+        // sliders changed location.
+        document.querySelectorAll('.send-slider').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const channel = e.target.dataset.channel;
+                const param = e.target.dataset.send; // 'reverbSend' or 'delaySend'
+                const value = parseFloat(e.target.value);
+                const track = this.synths[channel];
+                if (track && track[param]) {
+                    track[param].gain.value = value;
+                }
+
+                // Broadcast change
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify({
+                        type: 'SYNTH_PARAM_CHANGE',
+                        trackId: channel,
+                        parameter: param,
                         value: value
                     }));
                 }
@@ -1204,7 +1257,10 @@ class Groovebox {
         }
         if (param === 'reverbSend' || param === 'delaySend') {
             if (track[param]) track[param].gain.value = value;
-            const input = track.controlsContainer?.querySelector(`input[data-param="${param}"]`);
+            // These sliders live on this track's mixer channel strip now
+            // (not track.controlsContainer -- see createMixerChannel()),
+            // so a remote change has to look them up there instead.
+            const input = document.querySelector(`.mixer-channel[data-channel="${synthName}"] input[data-send="${param}"]`);
             if (input) {
                 input.value = value;
                 const display = input.parentElement.querySelector('.value-display');
@@ -2354,40 +2410,29 @@ class Track {
 
         container.appendChild(synthContainer);
 
-        // Sends: this track's own post-fader reverb/delay levels, plus
-        // accent and gate -- the groove controls read best sitting next to
-        // the sends rather than crowding the euclidean knobs above.
-        const sendsContainer = document.createElement('div');
-        sendsContainer.className = 'sends-controls';
-        sendsContainer.appendChild(this.createParamControl({
-            label: 'reverb',
-            min: 0, max: 1, step: 0.01,
-            value: this.reverbSend.gain.value,
-            parameter: 'reverbSend',
-            onInput: (value) => { this.reverbSend.gain.value = value; }
-        }));
-        sendsContainer.appendChild(this.createParamControl({
-            label: 'delay',
-            min: 0, max: 1, step: 0.01,
-            value: this.delaySend.gain.value,
-            parameter: 'delaySend',
-            onInput: (value) => { this.delaySend.gain.value = value; }
-        }));
-        sendsContainer.appendChild(this.createParamControl({
+        // Groove: per-hit accent (velocity) and gate (note length), the
+        // per-hit feel controls -- not mixing, so they stay on the track
+        // panel next to the euclidean knobs. Reverb/delay send levels used
+        // to live in this section too; they've moved onto this track's
+        // mixer channel strip (see Groovebox.createMixerChannel()) since
+        // they're a mix decision, not a groove one.
+        const grooveContainer = document.createElement('div');
+        grooveContainer.className = 'groove-controls';
+        grooveContainer.appendChild(this.createParamControl({
             label: 'accent',
             min: 0, max: 1, step: 0.01,
             value: this.accent,
             parameter: 'accent',
             onInput: (value) => { this.accent = value; }
         }));
-        sendsContainer.appendChild(this.createParamControl({
+        grooveContainer.appendChild(this.createParamControl({
             label: 'gate',
             min: 0.1, max: 2, step: 0.01,
             value: this.gate,
             parameter: 'gate',
             onInput: (value) => { this.gate = value; }
         }));
-        container.appendChild(sendsContainer);
+        container.appendChild(grooveContainer);
 
         // Filter: per-track lowpass between the synth and its mixer channel.
         const filterContainer = document.createElement('div');

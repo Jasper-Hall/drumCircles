@@ -1,29 +1,71 @@
 /*
  * drum-circles: a rheome surface.
- * Same terminal-lit instrument-panel world as the rheome.tools landing TUI:
- * cool blue-grey near-blacks, three tiers of off-white text, one porcelain
- * accent (#ece7da) reserved for interactive/selected states. Kaolin's LED
- * pair (#00FF88 tonal / #00D4FF noisy) is reserved for the "display" layer —
- * the sequencer rings and VU meters — the parts of a groovebox that light up.
- * Panels are btop/lazygit school: hairline borders, titles set into the
- * border line, one faint page-wide scanline; no flicker, no glow spam.
+ * Retoned 2026-07-14 from the dark-terminal/CRT dialect to the KAOLIN
+ * hardware-chassis language — transcribed from KaolinLookAndFeel.h (the
+ * Kaolin plugin's design-tokens header). Matte skeuomorphic panels, not a
+ * terminal: an outer near-black chassis (#0A0A0A) carries light gray-blue
+ * "plate" panels (#9EA4A8) with hairline group-frame borders, and each
+ * plate's title is engraved into it as a bracketed lowercase mono label
+ * ("[transport]") rather than set as a chip on the page background. The
+ * sequencer rings, note grid and VU meters are the one place light actually
+ * lives: dark sunken "display" wells (a #15171C -> #08090C gradient) carrying
+ * Kaolin's LED accents — ledGreen/ledCyan for the two euclidean rings,
+ * ledAmber for armed/selected states, ledRed for mute. Controls (knobs,
+ * buttons, selects) are FLAT hardware-gray (#585C5E) with hairline borders —
+ * Kaolin's M8.6 pass explicitly dropped gloss and fake 3D bevels, so no glow
+ * or gradient rides on anything that isn't an explicit "lit" state. The one
+ * accent that may shout is controlActive (#FFA200): a lit border/cap is a
+ * STATE, not decoration. Body type is Optima (Kaolin's panel face); the lone
+ * monospace use left in the app is the bracketed section label. No scanline —
+ * that was the old terminal's texture, not this one's.
  */
 
 :root {
-  --bg: #050608;
-  --panel: rgba(7, 9, 14, 0.55);
-  --surface: #0b0e16;
-  --t1: #eef1f6; /* bright: values, names, active */
-  --t2: #9aa3b2; /* body */
-  --t3: #545d6a; /* dim labels, hints */
-  --tb: #ece7da; /* porcelain: interactive/selected ONLY */
-  --tb-ink: #14120c;
-  --line: #232833;
-  --led-a: #00ff88; /* kaolin tonal: outer ring, VU */
-  --led-b: #00d4ff; /* kaolin noisy: inner ring */
-  --cursor: #fcfdfc; /* playing step stroke */
-  --glow: 0 0 14px rgba(236, 231, 218, 0.35);
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bg: #0a0a0a;
+  --plate: #9ea4a8;
+  --plate-sunken: #7b8286;
+  --plate-border: #2b2b2c;
+
+  --display: #2a2a2a;
+  --display-dim: #15181c;
+  --display-grad-a: #15171c;
+  --display-grad-b: #08090c;
+
+  --control-bg: #585c5e;
+  --control-border: #474b4d;
+  --control-edge: #2e2e2e;
+  --thumb-hi: #676c6e;
+  --thumb-lo: #383c3e;
+
+  --knob-arc: #3e4448;
+  --knob-value: #1d1c1b;
+
+  --accent: #ffa200;
+  --led-green: #00ff88;
+  --led-red: #ff4949;
+  --led-amber: #ffb347;
+  --led-cyan: #00d4ff;
+
+  --cursor: #e7eeeb;
+  --cursor-glow: #fcfdfc;
+
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4a44;
+  --text-on-dark: #e8e4d8;
+  --text-button: #c8c8c0;
+  --text-active: #edf1f2;
+  --text-section: rgba(58, 58, 60, 0.85);
+
+  --font-body: "Optima", "Optima Regular", Candara, "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", "SFMono-Regular", Menlo, ui-monospace, monospace;
+
+  --radius-display: 5px;
+  --radius-panel: 8.5px;
+  --radius-control: 6px;
+
+  --glow-accent: 0 0 10px rgba(255, 162, 0, 0.4);
+  --glow-red: 0 0 10px rgba(255, 73, 73, 0.4);
+  --glow-amber: 0 0 10px rgba(255, 179, 71, 0.4);
 }
 
 * {
@@ -35,39 +77,23 @@
 html {
   -webkit-text-size-adjust: 100%;
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: var(--control-border) transparent;
 }
 
 body {
   background: var(--bg);
-  color: var(--t2);
-  font-family: var(--font-mono);
+  color: rgba(232, 228, 216, 0.65);
+  font-family: var(--font-body);
   font-weight: 400;
   font-size: 12px;
   line-height: 1.45;
-  /* terminal dialect: lowercase, tracking 0 */
   letter-spacing: 0;
   min-height: 100vh;
 }
 
 ::selection {
-  background: var(--tb);
-  color: var(--tb-ink);
-}
-
-/* The one texture: a faint page-wide scanline. No flicker. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0px,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0.13) 3px
-  );
+  background: var(--accent);
+  color: var(--text-primary);
 }
 
 /* Thin scrollbars everywhere (webkit). */
@@ -76,7 +102,7 @@ body::after {
   height: 6px;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--line);
+  background: var(--control-border);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-track {
@@ -98,7 +124,7 @@ button {
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 1px solid var(--tb);
+  outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -110,7 +136,7 @@ select:focus-visible {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.8rem 1.25rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--control-border);
 }
 
 .bar-id {
@@ -121,19 +147,19 @@ select:focus-visible {
 }
 
 .wordmark {
-  color: var(--t1);
+  color: var(--text-on-dark);
   font-weight: 500;
   font-size: 13px;
 }
 
 .tagline {
-  color: var(--t3);
+  color: rgba(232, 228, 216, 0.55);
   font-size: 11px;
   white-space: nowrap;
 }
 
 .return-link {
-  color: var(--t3);
+  color: rgba(232, 228, 216, 0.55);
   font-size: 12px;
   text-decoration: none;
   white-space: nowrap;
@@ -141,7 +167,7 @@ select:focus-visible {
 
 .return-link:hover,
 .return-link:focus-visible {
-  color: var(--tb);
+  color: var(--accent);
   outline: none;
 }
 
@@ -181,8 +207,10 @@ select:focus-visible {
 }
 
 /* ---- panel dialect ----
- * Hairline border, rounded 6px, translucent dark face; the title is set INTO
- * the top border on a chip of page background so it breaks the line. */
+ * A raised hardware plate: solid gray-blue fill, hairline group-frame
+ * border, 8.5px radius. The title used to be a chip set into the border on
+ * page background; Kaolin engraves section names INTO the plate instead —
+ * a bracketed lowercase mono label notched top-left, inside the frame. */
 
 .transport,
 .fx,
@@ -190,9 +218,9 @@ select:focus-visible {
 .track,
 .mixer {
   position: relative;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
+  border: 1px solid var(--plate-border);
+  border-radius: var(--radius-panel);
+  background: var(--plate);
 }
 
 .transport::before,
@@ -200,67 +228,70 @@ select:focus-visible {
 .scale-selector::before,
 .mixer::before {
   position: absolute;
-  top: -0.62em;
-  left: 0.75rem;
-  padding: 0 0.55ch;
-  background: var(--bg);
-  color: var(--t3);
-  font-size: 10px;
-  line-height: 1.2;
+  top: 0.55rem;
+  left: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 2.1px;
+  color: var(--text-section);
+  text-transform: lowercase;
   user-select: none;
+  pointer-events: none;
 }
 
 .transport::before {
-  content: "transport";
+  content: "[transport]";
 }
 .fx::before {
-  content: "fx";
+  content: "[fx]";
 }
 .scale-selector::before {
-  content: "scale";
+  content: "[scale]";
 }
 .mixer::before {
-  content: "mixer";
+  content: "[mixer]";
 }
 
-/* ---- transport ---- */
+/* ---- transport ----
+ * Top padding grown to clear the engraved label notched inside the plate. */
 
 .transport {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem 1.1rem;
-  padding: 0.85rem 1rem 0.75rem;
+  padding: 1.55rem 1rem 0.75rem;
 }
 
-/* The primary control: same dialect, more presence. */
+/* The primary control: same hardware-button dialect, more presence. */
 #playButton {
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--t2);
+  background: var(--control-bg);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-control);
+  color: var(--text-button);
   text-transform: lowercase; /* the JS writes Play/Stop */
   padding: 0.45rem 1.6rem;
   transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
 
 #playButton:hover {
-  border-color: var(--tb);
-  color: var(--t1);
+  border-color: var(--accent);
 }
 
+/* A lit border is a STATE and may shout: no fill, just the accent border
+ * and the brightened "lit caps" text tone plus its glow. */
 #playButton.active {
-  background: var(--tb);
-  border-color: var(--tb);
-  color: var(--tb-ink);
-  box-shadow: var(--glow);
+  background: var(--control-bg);
+  border-color: var(--accent);
+  color: var(--text-active);
+  box-shadow: var(--glow-accent);
 }
 
 .bpm {
   display: inline-flex;
   align-items: baseline;
   gap: 0.5rem;
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
@@ -268,11 +299,12 @@ select:focus-visible {
   width: 3.6em;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--line);
-  color: var(--t1);
+  border-bottom: 1px solid var(--control-border);
+  color: var(--knob-value);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
   padding: 0.15rem 0.1rem;
-  caret-color: var(--tb);
+  caret-color: var(--accent);
   -moz-appearance: textfield;
   appearance: textfield;
 }
@@ -284,7 +316,7 @@ select:focus-visible {
 
 #bpmControl:focus {
   outline: none;
-  border-bottom-color: var(--tb);
+  border-bottom-color: var(--accent);
 }
 
 /* ---- fx panel ---- */
@@ -294,7 +326,7 @@ select:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem 1.6rem;
-  padding: 0.85rem 1rem 0.75rem;
+  padding: 1.55rem 1rem 0.75rem;
 }
 
 .fx-group {
@@ -305,7 +337,7 @@ select:focus-visible {
 }
 
 .fx-name {
-  color: var(--t1);
+  color: var(--text-primary);
   font-size: 11px;
   font-weight: 500;
 }
@@ -314,7 +346,7 @@ select:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 11px;
 }
 
@@ -335,14 +367,14 @@ select:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 1.1rem;
-  padding: 0.85rem 1rem 0.75rem;
+  padding: 1.55rem 1rem 0.75rem;
 }
 
 .scale-selector label {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 11px;
   text-transform: lowercase; /* the JS writes Scale: / Root Note: */
 }
@@ -353,10 +385,10 @@ select:focus-visible {
 #rootNote,
 .logic-operator,
 .track-select {
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--t1);
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  color: var(--text-button);
   font-size: 12px;
   padding: 0.25rem 0.5rem;
   transition: border-color 120ms ease;
@@ -366,18 +398,21 @@ select:focus-visible {
 #rootNote:hover,
 .logic-operator:hover,
 .track-select:hover {
-  border-color: var(--tb);
+  border-color: var(--accent);
 }
 
 #scaleSelect option,
 #rootNote option,
 .logic-operator option,
 .track-select option {
-  background: var(--surface);
-  color: var(--t1);
+  background: var(--display);
+  color: var(--text-on-dark);
 }
 
-/* ---- range sliders ---- */
+/* ---- range sliders ----
+ * Groove, not lamp: a near-black track with a flat hardware-gray thumb. The
+ * thumb keeps Kaolin's one sanctioned gradient (the linear-slider thumb is
+ * the single control the source still gives a gradient cap). */
 
 input[type="range"] {
   -webkit-appearance: none;
@@ -389,7 +424,7 @@ input[type="range"] {
 
 input[type="range"]::-webkit-slider-runnable-track {
   height: 2px;
-  background: var(--line);
+  background: var(--knob-arc);
   border-radius: 1px;
 }
 
@@ -399,22 +434,22 @@ input[type="range"]::-webkit-slider-thumb {
   height: 12px;
   margin-top: -5px;
   border-radius: 50%;
-  background: var(--tb);
-  border: 0;
+  background: linear-gradient(to bottom, var(--thumb-hi), var(--thumb-lo));
+  border: 1px solid var(--control-edge);
 }
 
 input[type="range"]::-moz-range-track {
   height: 2px;
-  background: var(--line);
+  background: var(--knob-arc);
   border-radius: 1px;
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  border: 0;
+  border: 1px solid var(--control-edge);
   border-radius: 50%;
-  background: var(--tb);
+  background: linear-gradient(to bottom, var(--thumb-hi), var(--thumb-lo));
 }
 
 /* ---- tracks grid ---- */
@@ -432,35 +467,52 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
-  padding: 1rem 0.8rem 0.8rem;
+  padding: 1.5rem 0.8rem 0.8rem;
   min-width: 0;
 }
 
-/* Track title (the synth name) set into the top border, like a panel title
- * but bright: it names the instrument. */
+/* Track title (the synth name) gets the same engraved bracketed treatment
+ * as a panel's section label: it names the instrument the way a front panel
+ * would, notched into the plate rather than floating on page background.
+ * The DOM only supplies the bare name, so the brackets are drawn in CSS. */
 .track h3 {
   position: absolute;
-  top: -0.62em;
-  left: 0.75rem;
-  padding: 0 0.55ch;
-  background: var(--bg);
-  color: var(--t1);
-  font-size: 11px;
-  font-weight: 500;
+  top: 0.55rem;
+  left: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 2.1px;
+  color: var(--text-section);
   line-height: 1.2;
   text-transform: lowercase;
   user-select: none;
 }
 
-/* ---- circular sequencer: the display layer ---- */
+.track h3::before {
+  content: "[";
+}
+.track h3::after {
+  content: "]";
+}
+
+/* ---- circular sequencer: the display layer ----
+ * A sunken dark display well (Kaolin's paintDisplay): the map gradient with
+ * a hardware-border bezel and an inset/outset lip standing in for the
+ * source's real two-layer bezel, since there's no extra DOM element to hang
+ * it on here. */
 
 .circular-sequencer {
   width: 180px;
   height: 180px;
   margin: 0 auto;
+  padding: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(160deg, var(--display-grad-a), var(--display-grad-b));
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-display);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
 .circular-sequencer svg {
@@ -468,26 +520,28 @@ input[type="range"]::-moz-range-thumb {
   height: 100%;
 }
 
+/* Idle: dim strokes on the dark well. */
 .sequencer-led {
-  fill: #10141b;
-  stroke: var(--line);
+  fill: var(--display);
+  stroke: var(--control-border);
   stroke-width: 1;
   transition: fill 100ms ease, stroke 100ms ease;
 }
 
-/* Kaolin's tonal/noisy pair distinguishes the two euclidean patterns. */
+/* Kaolin's tonal/noisy LED pair distinguishes the two euclidean patterns. */
 .outer-ring .sequencer-led.active {
-  fill: var(--led-a);
-  stroke: var(--led-a);
+  fill: var(--led-green);
+  stroke: var(--led-green);
   filter: drop-shadow(0 0 3px rgba(0, 255, 136, 0.55));
 }
 
 .inner-ring .sequencer-led.active {
-  fill: var(--led-b);
-  stroke: var(--led-b);
+  fill: var(--led-cyan);
+  stroke: var(--led-cyan);
   filter: drop-shadow(0 0 3px rgba(0, 212, 255, 0.55));
 }
 
+/* The playing cursor is always YOU, and is always white. */
 .sequencer-led.playing {
   stroke: var(--cursor);
   stroke-width: 2;
@@ -506,14 +560,14 @@ input[type="range"]::-moz-range-thumb {
 
 /* Each section inside a track opens with a hairline and a dim label. */
 .sequencer-control-group {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--plate-border);
   padding-top: 0.5rem;
 }
 
 .outer-controls::before,
 .inner-controls::before {
   display: block;
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 10px;
   margin-bottom: 0.35rem;
 }
@@ -525,7 +579,9 @@ input[type="range"]::-moz-range-thumb {
   content: "inner";
 }
 
-/* ---- knobs ---- */
+/* ---- knobs ----
+ * M8.6: flat matte face, no gloss, no fake bevel. The indicator is a groove
+ * (near-black), not a lamp. */
 
 .knob-controls {
   display: flex;
@@ -546,25 +602,19 @@ input[type="range"]::-moz-range-thumb {
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  transition: border-color 120ms ease;
+  background: var(--control-bg);
+  border: 1px solid var(--control-border);
 }
 
-.knob-outer:hover {
-  border-color: var(--tb);
-}
-
-/* Pointer line: porcelain with a faint glow. Geometry matters — the JS
- * rotates it around bottom-center (= the knob's center). */
+/* Pointer line: a groove, not a lamp — no glow. Geometry is untouched, the
+ * JS rotates it around bottom-center (= the knob's center). */
 .knob-indicator {
   position: absolute;
   width: 2px;
   height: 19px;
   top: 5px;
   left: calc(50% - 1px);
-  background: var(--tb);
-  box-shadow: 0 0 4px rgba(236, 231, 218, 0.45);
+  background: var(--knob-value);
   transform-origin: bottom center;
   transform: rotate(-135deg);
   pointer-events: none;
@@ -584,15 +634,17 @@ input[type="range"]::-moz-range-thumb {
 
 .knob-label {
   margin-top: 0.3rem;
-  color: var(--t3);
-  font-size: 10px;
+  color: var(--text-secondary);
+  font-size: 8.5px;
+  letter-spacing: 2.1px;
   text-align: center;
   text-transform: lowercase;
 }
 
 .value-display {
-  color: var(--t1);
+  color: var(--knob-value);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
@@ -604,37 +656,43 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .pattern-sequence-controls {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--plate-border);
   padding-top: 0.5rem;
 }
 
 .sequence-label {
-  color: var(--t1);
+  color: var(--text-primary);
   font-size: 11px;
 }
 
 .cycle-info {
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---- note grid: 8x8, scale-locked ---- */
+/* ---- note grid: 8x8, scale-locked ----
+ * Another sunken display well: the grid of cells lives on the dark map
+ * gradient, same bezel treatment as the sequencer. */
 
 .note-selection {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 2px;
   width: 100%;
-  border-top: 1px solid var(--line);
-  padding-top: 0.5rem;
+  padding: 0.55rem;
+  background: linear-gradient(160deg, var(--display-grad-a), var(--display-grad-b));
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-display);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
 .note-selection::before {
   content: "notes";
   grid-column: 1 / -1;
-  color: var(--t3);
-  font-size: 10px;
-  margin-bottom: 0.15rem;
+  color: rgba(232, 228, 216, 0.5);
+  font-size: 9px;
+  margin-bottom: 0.3rem;
 }
 
 .note-button {
@@ -643,26 +701,28 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  color: var(--t3);
+  background: var(--display);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: rgba(232, 228, 216, 0.45);
   font-size: 8.5px;
   line-height: 1;
   padding: 0;
-  transition: border-color 100ms ease, background 100ms ease,
-    color 100ms ease;
+  transition: border-color 100ms ease, background 100ms ease, color 100ms ease,
+    box-shadow 100ms ease;
 }
 
 .note-button:hover {
-  border-color: var(--tb);
-  color: var(--t2);
+  border-color: var(--text-button);
+  color: var(--text-on-dark);
 }
 
+/* Selected = armed = amber. */
 .note-button.selected {
-  background: var(--tb);
-  border-color: var(--tb);
-  color: var(--tb-ink);
+  background: var(--led-amber);
+  border-color: var(--led-amber);
+  color: var(--display-dim);
+  box-shadow: 0 0 6px rgba(255, 179, 71, 0.5);
 }
 
 /* ---- synth params ---- */
@@ -671,40 +731,42 @@ input[type="range"]::-moz-range-thumb {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--plate-border);
   padding-top: 0.5rem;
 }
 
 .synth-controls::before {
   content: "synth";
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 10px;
   margin-bottom: 0.1rem;
 }
 
-/* ---- sends / filter (per-track, JS-generated) ----
+/* ---- groove / filter (per-track, JS-generated) ----
  * Same shape as .synth-controls: a hairline-topped section with a dim
- * label, populated with the same .param-control rows. */
+ * label, populated with the same .param-control rows. Reverb/delay send
+ * sliders used to live in this section (as .sends-controls) but moved onto
+ * the mixer channel strip -- see .mixer-sends below. */
 
-.sends-controls,
+.groove-controls,
 .filter-controls {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--plate-border);
   padding-top: 0.5rem;
 }
 
-.sends-controls::before {
-  content: "sends";
-  color: var(--t3);
+.groove-controls::before {
+  content: "groove";
+  color: var(--text-secondary);
   font-size: 10px;
   margin-bottom: 0.1rem;
 }
 
 .filter-controls::before {
   content: "filter";
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 10px;
   margin-bottom: 0.1rem;
 }
@@ -719,7 +781,7 @@ input[type="range"]::-moz-range-thumb {
 .param-control label {
   grid-column: 1;
   grid-row: 1;
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 10px;
   text-transform: lowercase;
 }
@@ -757,15 +819,16 @@ input[type="range"]::-moz-range-thumb {
 .mixer {
   display: flex;
   align-items: stretch;
-  /* wrap rather than scroll: overflow-x would clip the title chip set into
-   * the top border, and wrapped channel rows read fine on narrow screens */
+  /* wrap rather than scroll: overflow-x would clip the engraved label
+   * notched into the plate, and wrapped channel rows read fine on narrow
+   * screens */
   flex-wrap: wrap;
   gap: 1.1rem;
-  padding: 1.1rem 1rem 0.8rem;
+  padding: 1.6rem 1rem 0.8rem;
 }
 
 .mixer h4 {
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 10px;
   font-weight: 400;
   text-transform: lowercase;
@@ -779,11 +842,11 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: column;
   gap: 0.45rem;
   padding-right: 1.1rem;
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--plate-border);
 }
 
 .compressor-controls h4 {
-  color: var(--t1);
+  color: var(--text-primary);
   font-weight: 500;
   font-size: 11px;
   margin-bottom: 0.2rem;
@@ -797,7 +860,7 @@ input[type="range"]::-moz-range-thumb {
 
 .comp-control label {
   flex: 0 0 72px;
-  color: var(--t3);
+  color: var(--text-secondary);
   font-size: 10px;
   text-transform: lowercase;
 }
@@ -816,23 +879,33 @@ input[type="range"]::-moz-range-thumb {
 .mixer-separator {
   flex: 0 0 1px;
   align-self: stretch;
-  background: var(--line);
+  background: var(--plate-border);
 }
 
-/* Channel strips: name, fader-over-VU, pan, mute/solo. */
+/* Channel strips: name, fader-over-VU, pan, sends, mute/solo. Each strip now
+ * sits on its own sunken sub-plate (Kaolin's panelDark), rather than bare on
+ * the mixer plate — one tier of relief between "mixer" and "channel". */
 .mixer-channel {
-  flex: 0 0 auto;
-  min-width: 72px;
+  /* fixed width: a range input's intrinsic ~129px size would otherwise
+   * stretch every strip and wrap the row; 124px seats compressor + master
+   * + all seven strips on one line inside the 1480px column */
+  flex: 0 0 124px;
+  width: 124px;
+  min-width: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   justify-items: center;
   align-content: start;
   gap: 0.5rem 0.35rem;
+  background: var(--plate-sunken);
+  border: 1px solid var(--plate-border);
+  border-radius: var(--radius-panel);
+  padding: 0.6rem 0.5rem 0.7rem;
 }
 
 .mixer-channel h4 {
   grid-column: 1 / -1;
-  color: var(--t1);
+  color: var(--text-primary);
   font-size: 11px;
   font-weight: 500;
 }
@@ -849,12 +922,14 @@ input[type="range"]::-moz-range-thumb {
   justify-content: center;
 }
 
+/* Another display well: same map gradient and bezel as the sequencer/notes. */
 .vu-meter {
   position: absolute;
   inset: 0;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 3px;
+  background: linear-gradient(160deg, var(--display-grad-a), var(--display-grad-b));
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-display);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.15);
   overflow: hidden;
 }
 
@@ -864,7 +939,7 @@ input[type="range"]::-moz-range-thumb {
   position: absolute;
   bottom: 0;
   width: 100%;
-  background: linear-gradient(to top, var(--led-a) 0%, var(--led-b) 100%);
+  background: linear-gradient(to top, var(--led-green) 0%, var(--led-cyan) 100%);
   background-size: 100% 150px;
   background-position: bottom;
   transition: height 50ms linear;
@@ -887,12 +962,12 @@ input[type="range"]::-moz-range-thumb {
 
 .fader::-webkit-slider-runnable-track {
   height: 2px;
-  background: rgba(238, 241, 246, 0.18);
+  background: rgba(232, 228, 216, 0.18);
 }
 
 .fader::-moz-range-track {
   height: 2px;
-  background: rgba(238, 241, 246, 0.18);
+  background: rgba(232, 228, 216, 0.18);
 }
 
 .pan-container {
@@ -906,15 +981,51 @@ input[type="range"]::-moz-range-thumb {
   width: 64px;
 }
 
+/* Per-channel reverb/delay sends, between pan and mute/solo. Narrow strip,
+ * so each is a single row: a ~3ch label plus a flexed slider (reusing the
+ * global input[type="range"] styling above -- no per-control value-display,
+ * there isn't room). */
+.mixer-sends {
+  grid-column: 1 / -1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.send-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.send-row label {
+  flex: 0 0 3ch;
+  color: var(--text-secondary);
+  font-size: 9px;
+  text-transform: lowercase;
+}
+
+.send-row input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---- hardware buttons: mute / solo / toggle ----
+ * One shared flat base; each lit state means something different, so each
+ * gets its own accent rather than a single combined ".active" rule: mute is
+ * an alert (red), solo is armed-warm (amber), sync/chord is a plain lit
+ * state (accent border, no fill) — the same pattern as #playButton.active. */
+
 .mute,
 .solo,
 .toggle-btn {
   width: 26px;
   height: 22px;
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  color: var(--t2);
+  background: var(--control-bg);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-control);
+  color: var(--text-button);
   font-size: 10px;
   line-height: 1;
   text-transform: lowercase; /* the JS writes M / S / sync */
@@ -925,23 +1036,35 @@ input[type="range"]::-moz-range-thumb {
 .mute:hover,
 .solo:hover,
 .toggle-btn:hover {
-  border-color: var(--tb);
-  color: var(--t1);
+  border-color: var(--accent);
 }
 
-.mute.active,
-.solo.active,
+.mute.active {
+  background: var(--led-red);
+  border-color: var(--led-red);
+  color: var(--display-dim);
+  box-shadow: var(--glow-red);
+}
+
+.solo.active {
+  background: var(--led-amber);
+  border-color: var(--led-amber);
+  color: var(--display-dim);
+  box-shadow: var(--glow-amber);
+}
+
 .toggle-btn.active {
-  background: var(--tb);
-  border-color: var(--tb);
-  color: var(--tb-ink);
-  box-shadow: var(--glow);
+  background: var(--control-bg);
+  border-color: var(--accent);
+  color: var(--text-active);
+  box-shadow: var(--glow-accent);
 }
 
 /* ---- help system ----
  * The icon toggles .help-mode on <body>; the pointer-events machinery below
  * is load-bearing — it freezes the instrument so hovering reads tooltips
- * instead of tweaking knobs. Restyled porcelain, mechanics preserved. */
+ * instead of tweaking knobs. Restyled hardware-button/display, mechanics
+ * preserved. */
 
 .help-icon {
   position: fixed;
@@ -950,9 +1073,9 @@ input[type="range"]::-moz-range-thumb {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  color: var(--t3);
+  background: var(--control-bg);
+  border: 1px solid var(--control-edge);
+  color: var(--text-button);
   font-size: 12px;
   display: flex;
   align-items: center;
@@ -963,23 +1086,22 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .help-icon:hover {
-  border-color: var(--tb);
-  color: var(--t1);
+  border-color: var(--accent);
 }
 
 .help-icon.active {
-  background: var(--tb);
-  border-color: var(--tb);
-  color: var(--tb-ink);
-  box-shadow: var(--glow);
+  background: var(--control-bg);
+  border-color: var(--accent);
+  color: var(--text-active);
+  box-shadow: var(--glow-accent);
 }
 
 .help-tooltip {
   position: fixed;
-  background: rgba(7, 9, 14, 0.95);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--t2);
+  background: var(--display);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-display);
+  color: var(--text-on-dark);
   font-size: 12px;
   line-height: 1.45;
   padding: 0.7rem 0.85rem;
@@ -1011,11 +1133,12 @@ input[type="range"]::-moz-range-thumb {
   visibility: visible !important;
 }
 
-/* Highlight: porcelain outline on the hovered/annotated control. */
+/* Highlight: the accent outline on the hovered/annotated control — a lit
+ * border is a STATE, and help-mode's own outline is exactly that. */
 .help-mode .help-active {
-  outline: 1px solid var(--tb);
+  outline: 1px solid var(--accent);
   outline-offset: 2px;
-  box-shadow: var(--glow);
+  box-shadow: var(--glow-accent);
   border-radius: 4px;
   cursor: help;
   position: relative;
@@ -1052,8 +1175,9 @@ input[type="range"]::-moz-range-thumb {
 .help-mode .pattern-sequence-controls,
 .help-mode .logic-operator,
 .help-mode .synth-controls,
-.help-mode .sends-controls,
+.help-mode .groove-controls,
 .help-mode .filter-controls,
+.help-mode .mixer-sends,
 .help-mode .scale-selector,
 .help-mode .compressor-controls,
 .help-mode .comp-control {
