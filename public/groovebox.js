@@ -2999,8 +2999,9 @@ class Track {
                 input.value = newValue;
                 display.textContent = fmt(newValue);
 
-                indicator.style.transform = `rotate(${angleFor(newValue, dragList)}deg)`;
-                console.log(`Knob ${id} updated. Rotation: ${rotation.toFixed(2)}deg`);
+                const angle = angleFor(newValue, dragList);
+                indicator.style.transform = `rotate(${angle}deg)`;
+                console.log(`Knob ${id} updated. Rotation: ${angle.toFixed(2)}deg`);
 
 
                 // Trigger onChange callback
