@@ -1177,11 +1177,6 @@ class Groovebox {
         if (param.includes('-')) {
             const knob = track.controlsContainer.querySelector(`#${param}`);
             if (knob) {
-                knob.value = value;
-                // Update knob display
-                const display = knob.parentElement.querySelector('.value-display');
-                if (display) display.textContent = value;
-                
                 // Update sequencer state
                 const [type, control] = param.split('-');
                 const sequencer = type === 'outer' ? track.outerSequencer : track.innerSequencer;
@@ -1194,6 +1189,7 @@ class Groovebox {
                         control === 'distribution' ? value : sequencer.distribution
                     );
                 }
+                paintKnob(knob, value);
             }
         }
         
@@ -1388,11 +1384,7 @@ class Groovebox {
                     // Update UI knobs
                     Object.entries(trackState.outerSequencer).forEach(([param, value]) => {
                         const knob = track.controlsContainer.querySelector(`#outer-${param}`);
-                        if (knob) {
-                            knob.value = value;
-                            const display = knob.parentElement.querySelector('.value-display');
-                            if (display) display.textContent = value;
-                        }
+                        if (knob) paintKnob(knob, value);
                     });
                 }
 
@@ -1768,25 +1760,47 @@ class Groovebox {
             const knob = track.controlsContainer
                 ? track.controlsContainer.querySelector(`#${parameter}`)
                 : null;
-            if (knob) {
-                knob.value = value;
-                
-                // Also update the display
-                const display = knob.closest('.knob-container').querySelector('.value-display');
-                if (display) {
-                    display.textContent = value;
-                }
-                
-                // Update knob indicator
-                const indicator = knob.closest('.knob-container').querySelector('.knob-indicator');
-                if (indicator) {
-                    const min = parseInt(knob.min);
-                    const max = parseInt(knob.max);
-                    const rotation = (value - min) / (max - min) * 270 - 135;
-                    indicator.style.transform = `rotate(${rotation}deg)`;
-                }
-            }
+            paintKnob(knob, value);
         }
+    }
+}
+
+// Distribution reads as a signed weighting, not a percentage: negative pulls the
+// pulses toward the front of the bar, positive toward the end, and dead centre is
+// the unmodified Euclidean pattern. It is stored 0-100 for backward compatibility
+// with saved state and the websocket protocol.
+const NEUTRAL_DISTRIBUTION = 50;
+
+function formatDistribution(value) {
+    const v = Number(value);
+    if (v === NEUTRAL_DISTRIBUTION) return 'EUC';
+    const signed = (v - 50) / 50;
+    return (signed > 0 ? '+' : '') + signed.toFixed(2);
+}
+
+// Repaint a knob from outside its own drag handler (websocket sync, loaded state,
+// a re-snap) using the same value formatting and detent-aware angle the knob uses
+// itself. Falls back to the plain linear mapping for knobs created without them.
+function paintKnob(input, value) {
+    if (!input) return;
+    input.value = value;
+    const box = input.closest ? input.closest('.knob-container') : null;
+    if (!box) return;
+    const display = box.querySelector('.value-display');
+    if (display) {
+        display.textContent = input._knobFormat ? input._knobFormat(value) : value;
+    }
+    const indicator = box.querySelector('.knob-indicator');
+    if (indicator) {
+        let angle;
+        if (input._knobAngleFor && input._knobDetents) {
+            angle = input._knobAngleFor(value, input._knobDetents());
+        } else {
+            const min = parseFloat(input.min) || 0;
+            const max = parseFloat(input.max) || 100;
+            angle = ((value - min) / (max - min)) * 270 - 135;
+        }
+        indicator.style.transform = `rotate(${angle}deg)`;
     }
 }
 
@@ -1808,10 +1822,11 @@ class EuclideanSequencer {
     }
 
     // --- Revised applyDistribution method ---
-    applyDistribution(pattern) {
+    // distributionValue defaults to the live value; distributionDetents() passes
+    // explicit values in to probe the range without mutating the sequencer.
+    applyDistribution(pattern, distributionValue = this.distribution) {
         const steps = this.steps;
         const pulses = this.pulses;
-        const distributionValue = this.distribution;
 
         // Edge cases: No change needed
         if (distributionValue === 50 || pulses <= 0 || pulses >= steps) {
@@ -1905,6 +1920,49 @@ class EuclideanSequencer {
         }
         
         return pattern;
+    }
+
+    // --- Distribution detents ---------------------------------------------
+    // The distribution range is 0-100, but at any given (steps, pulses) only
+    // 14-50 of those positions produce a *different* pattern; the rest are
+    // plateaus, and they are not evenly spread. Measured 2026-09-09
+    // (tools/plateau.js): N=16 K=5 yields 45 distinct patterns across 101
+    // positions, with plateaus up to 7 positions long, and K=6/K=7 have a
+    // 6-position dead band sitting right on top of the centre -- exactly where
+    // fine control matters most, since that is the approach to the Euclidean
+    // pattern.
+    //
+    // So the knob is detented onto the values where the pattern actually
+    // changes. Every step of the knob is then a new rhythm, the throw is
+    // allocated by where the parameter does something rather than uniformly
+    // across a number line, and the dead band at centre disappears.
+    distributionDetents() {
+        const base = this.bjorklund(this.steps, this.pulses);
+
+        // Group the 0-100 range into plateaus of identical output.
+        const plateaus = [];
+        let previous = null;
+        for (let d = 0; d <= 100; d++) {
+            const key = this.applyDistribution(base, d)
+                .map(hit => (hit ? '1' : '0'))
+                .join('');
+            if (key === previous) {
+                plateaus[plateaus.length - 1].push(d);
+            } else {
+                plateaus.push([d]);
+                previous = key;
+            }
+        }
+
+        // Represent each plateau by its member nearest dead centre. Taking the
+        // first member instead would put the neutral detent at the *start* of the
+        // centre plateau (typically 47, not 50), so the unmodified Euclidean
+        // pattern would read as an offset value and a reset would land off centre.
+        return plateaus.map(group =>
+            group.reduce((best, d) =>
+                (Math.abs(d - NEUTRAL_DISTRIBUTION) < Math.abs(best - NEUTRAL_DISTRIBUTION) ? d : best),
+                group[0])
+        );
     }
 
     getStep(step) {
@@ -2638,6 +2696,7 @@ class Track {
                     }
                 }
 
+                this.resyncDistributionKnob(container, type);
                 this.updateVisualization(this.groovebox.currentStep); // Update visualization after changes
             }
         });
@@ -2684,6 +2743,7 @@ class Track {
                          });
                      }
                 }
+                this.resyncDistributionKnob(container, type);
                 this.updateVisualization(this.groovebox.currentStep);
             }
         });
@@ -2719,6 +2779,10 @@ class Track {
             min: 0,
             max: 100,
             value: type === 'outer' ? this.outerSequencer.distribution : this.innerSequencer.distribution, // Use distribution
+            // Only the values that change the pattern are reachable, and the throw
+            // is spread evenly across them. See distributionDetents().
+            detents: () => (type === 'outer' ? this.outerSequencer : this.innerSequencer).distributionDetents(),
+            format: formatDistribution,
             onChange: (value) => {
                 const sequencer = type === 'outer' ? this.outerSequencer : this.innerSequencer;
                 sequencer.updateParams(
@@ -2764,9 +2828,85 @@ class Track {
         return container;
     }
 
-    createKnob({ id, label, min, max, value, onChange }) {
+    // detents: optional () => sorted array of the only values this knob may take.
+    //   When supplied, the knob moves by index through that list instead of by
+    //   integer, so its throw is allocated to positions that actually do
+    //   something. Recomputed on every drag start, because the valid set depends
+    //   on other parameters (see EuclideanSequencer.distributionDetents).
+    // format: optional (value) => display string.
+    // The detent set for distribution is derived from steps and pulses, so when
+    // either changes the stored value may no longer sit on a detent. Snap it to the
+    // nearest one and repaint -- the same treatment rotation already gets when a
+    // steps change clamps it.
+    resyncDistributionKnob(container, type) {
+        const sequencer = type === 'outer' ? this.outerSequencer : this.innerSequencer;
+        const input = container.querySelector(`#${type}-distribution`);
+        if (!input) return;
+
+        const list = input._knobDetents ? input._knobDetents() : null;
+        let snapped = sequencer.distribution;
+        if (list) {
+            snapped = list.reduce((best, d) =>
+                Math.abs(d - sequencer.distribution) < Math.abs(best - sequencer.distribution) ? d : best,
+                list[0]);
+        }
+
+        if (snapped !== sequencer.distribution) {
+            sequencer.updateParams(
+                sequencer.steps,
+                sequencer.pulses,
+                sequencer.rotation,
+                sequencer.probability,
+                snapped
+            );
+            if (this.groovebox && this.groovebox.broadcastStateChange) {
+                this.groovebox.broadcastStateChange('KNOB_CHANGE', {
+                    trackId: this.name,
+                    parameter: `${type}-distribution`,
+                    value: snapped
+                });
+            }
+        }
+        paintKnob(input, snapped);
+    }
+
+    createKnob({ id, label, min, max, value, onChange, detents = null, format = null }) {
         const container = document.createElement('div');
         container.className = 'knob-container';
+
+        const fmt = (v) => (format ? format(v) : String(v));
+        // A detent list of one means the parameter currently has no audible
+        // effect at these settings (no pulses, or every step filled). Fall back
+        // to continuous travel so the knob still stores a value for later
+        // rather than reading as broken.
+        const detentList = () => {
+            if (!detents) return null;
+            const list = detents();
+            return (Array.isArray(list) && list.length > 1) ? list : null;
+        };
+        const nearestIndex = (list, v) => {
+            let best = 0;
+            for (let i = 1; i < list.length; i++) {
+                if (Math.abs(list[i] - v) < Math.abs(list[best] - v)) best = i;
+            }
+            return best;
+        };
+        const angleFor = (v, list) => {
+            if (!list) return ((v - min) / (max - min)) * 270 - 135;
+            const i = nearestIndex(list, v);
+            const centre = list.indexOf(NEUTRAL_DISTRIBUTION);
+            if (centre <= 0 || centre >= list.length - 1) {
+                return (i / (list.length - 1)) * 270 - 135;
+            }
+            // Pin the neutral detent to 12 o'clock and give each side its own half
+            // of the sweep. The two sides rarely hold the same number of detents,
+            // so spreading all detents evenly across the full arc would leave the
+            // unmodified Euclidean position visibly off-centre -- which would read
+            // as a mistake, and contradicts what the parameter means.
+            return i < centre
+                ? -135 + (i / centre) * 135
+                : ((i - centre) / (list.length - 1 - centre)) * 135;
+        };
 
         // Keep the same HTML structure
         const knobHtml = `
@@ -2778,7 +2918,7 @@ class Track {
                 </div>
             </div>
             <div class="knob-label">${label}</div>
-            <div class="value-display">${value}</div>
+            <div class="value-display">${fmt(value)}</div>
         `;
         container.innerHTML = knobHtml;
 
@@ -2788,20 +2928,38 @@ class Track {
         const display = container.querySelector('.value-display'); // Get the display element
 
         // Initial rotation
-        const initialRotation = ((value - min) / (max - min)) * 270 - 135;
-        indicator.style.transform = `rotate(${initialRotation}deg)`;
+        indicator.style.transform = `rotate(${angleFor(value, detentList())}deg)`;
+
+        // Expose the mapping so code that sets this knob from outside (websocket
+        // sync, saved state, a pulses change re-snapping distribution) renders it
+        // the same way the drag handler does.
+        input._knobFormat = fmt;
+        input._knobDetents = detentList;
+        input._knobAngleFor = angleFor;
         console.log(`Knob ${id} created with initial value ${value}`);
 
         // --- Start: Custom Drag Logic from groovebox.js ---
         let isDragging = false;
         let startY = 0;
         let startValue = 0;
+        let dragList = null;      // detent values for the duration of this drag
+        let startIndex = 0;
+        let dragPxPerStep = 2;
 
         const startDrag = (e) => {
             e.preventDefault(); // Prevent text selection/default drag behavior
             isDragging = true;
             startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
             startValue = parseInt(input.value);
+            // Resolve the detent set once per drag: it depends on steps/pulses,
+            // which cannot change mid-drag.
+            dragList = detentList();
+            if (dragList) {
+                startIndex = nearestIndex(dragList, startValue);
+                // Keep the full throw around 200px however many detents there are,
+                // so a 14-detent knob and a 50-detent knob feel the same in the hand.
+                dragPxPerStep = Math.max(3, Math.round(200 / (dragList.length - 1)));
+            }
             surface.style.cursor = 'grabbing'; // Change cursor during drag
             console.log(`Knob ${id} drag started. StartY: ${startY}, StartValue: ${startValue}`);
 
@@ -2819,12 +2977,19 @@ class Track {
             const currentY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
             const diff = startY - currentY; // Vertical difference
 
-            // Adjust sensitivity (lower number = more sensitive)
-            const sensitivity = 2;
-            let newValue = startValue + Math.round(diff / sensitivity);
-
-            // Clamp value between min and max
-            newValue = Math.max(min, Math.min(max, newValue));
+            let newValue;
+            if (dragList) {
+                const index = Math.max(0, Math.min(
+                    dragList.length - 1,
+                    startIndex + Math.round(diff / dragPxPerStep)
+                ));
+                newValue = dragList[index];
+            } else {
+                // Adjust sensitivity (lower number = more sensitive)
+                const sensitivity = 2;
+                newValue = startValue + Math.round(diff / sensitivity);
+                newValue = Math.max(min, Math.min(max, newValue));
+            }
             console.log(`Knob ${id} dragging. CurrentY: ${currentY}, Diff: ${diff}, NewValue: ${newValue}`);
 
 
@@ -2832,10 +2997,9 @@ class Track {
             if (newValue !== parseInt(input.value)) {
                 // Update hidden input, display text, and indicator rotation
                 input.value = newValue;
-                display.textContent = newValue;
+                display.textContent = fmt(newValue);
 
-                const rotation = ((newValue - min) / (max - min)) * 270 - 135;
-                indicator.style.transform = `rotate(${rotation}deg)`;
+                indicator.style.transform = `rotate(${angleFor(newValue, dragList)}deg)`;
                 console.log(`Knob ${id} updated. Rotation: ${rotation.toFixed(2)}deg`);
 
 
@@ -2880,12 +3044,13 @@ class Track {
 
         // Double click to reset to default value (using the initial 'value' passed in)
         surface.addEventListener('dblclick', () => {
-            const defaultValue = parseFloat(input.getAttribute('value')); // Or use the initial 'value' if stored
+            let defaultValue = parseFloat(input.getAttribute('value')); // Or use the initial 'value' if stored
+            const resetList = detentList();
+            if (resetList) defaultValue = resetList[nearestIndex(resetList, defaultValue)];
             console.log(`Knob ${id} double-clicked. Resetting to default: ${defaultValue}`);
             input.value = defaultValue;
-            display.textContent = defaultValue;
-            const rotation = ((defaultValue - min) / (max - min)) * 270 - 135;
-            indicator.style.transform = `rotate(${rotation}deg)`;
+            display.textContent = fmt(defaultValue);
+            indicator.style.transform = `rotate(${angleFor(defaultValue, resetList)}deg)`;
 
             if (onChange) {
                  try {
