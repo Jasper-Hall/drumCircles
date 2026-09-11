@@ -1,0 +1,312 @@
+/* tune.css -- styles specific to the internal, temporary tuning page
+ * (tune.html). Deliberately layered on top of public/styles.css and reusing
+ * its custom properties plus several of its component classes (.track,
+ * .param-control, .value-display, .note-selection, .note-button,
+ * .transport, #playButton, #bpmControl, #scaleSelect, #rootNote) rather than
+ * inventing a new look -- see styles.css's top comment for the KAOLIN
+ * hardware-chassis dialect this matches. This file only adds the pieces
+ * that don't already exist there: the tuning-desk layout, the genre list,
+ * the pattern-strip/target comparison, and the export panel.
+ *
+ * Internal tool: clarity over decoration. Desktop-only by design (no
+ * mobile layout -- see the task brief for tune.html). */
+
+body.tune-page {
+  min-height: 100vh;
+}
+
+.tune-layout {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 1rem 1rem 3rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+/* ---- generic engraved panel, matching styles.css's plate dialect without
+ * editing that shared file (it also styles the live app at index.html). --- */
+.tune-panel {
+  position: relative;
+  border: 1px solid var(--plate-border);
+  border-radius: var(--radius-panel);
+  background: var(--plate);
+  padding: 1.55rem 0.9rem 0.9rem;
+}
+.tune-panel::before {
+  content: attr(data-label);
+  position: absolute;
+  top: 0.55rem;
+  left: 0.8rem;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 2.1px;
+  color: var(--text-section);
+  text-transform: lowercase;
+  user-select: none;
+  pointer-events: none;
+}
+
+.tune-sidebar {
+  width: 300px;
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.tune-tracks {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.tune-tracks .track {
+  min-width: 0;
+}
+
+/* ---- genre list ---- */
+.genre-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+
+.genre-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--control-bg);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-control);
+  color: var(--text-button);
+  font-size: 11px;
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.genre-item:hover {
+  border-color: var(--accent);
+}
+.genre-item.selected {
+  border-color: var(--accent);
+  color: var(--text-active);
+  box-shadow: var(--glow-accent);
+}
+.genre-item .genre-bpm {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.genre-item.unreachable {
+  border-style: dashed;
+  border-color: var(--led-amber);
+}
+.genre-item .genre-flag {
+  color: var(--led-amber);
+  font-size: 8.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+/* ---- note seeds (scale/root), plain -- deliberately NOT the .scale-selector
+ * class from styles.css, which is already a top-level panel with its own
+ * hardcoded "[scale]" engraved label; nesting it here would double up. The
+ * #scaleSelect/#rootNote selects still pick up styles.css's ID-based rules
+ * regardless of the wrapper class. ---- */
+.tune-scaleroot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.tune-scaleroot label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.tune-scaleroot select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---- per-track tuning sections ---- */
+.tune-section {
+  border-top: 1px solid var(--plate-border);
+  padding-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.tune-section::before {
+  content: attr(data-label);
+  display: block;
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-transform: lowercase;
+}
+
+/* Steps/pulses/rotation: a number readout (reusing .value-display's grid
+ * slot from styles.css's .param-control rule) plus a full-width range below
+ * it (styles.css's ".param-control input[type=range]" rule already puts any
+ * range input there -- no extra positioning needed). */
+.euclid-controls .value-display.euclid-number {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--control-border);
+  text-align: right;
+  width: 3em;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+}
+.euclid-controls .value-display.euclid-number::-webkit-inner-spin-button,
+.euclid-controls .value-display.euclid-number::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+/* ---- pattern strips: a hit and a rest must be unmistakable at a glance,
+ * and a mismatch against the target obvious. ---- */
+.pattern-section {
+  gap: 0.3rem;
+}
+.pattern-strip-label {
+  font-size: 8px;
+  color: var(--text-secondary);
+  text-transform: lowercase;
+}
+.pattern-row {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 2px;
+}
+.pattern-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  border-radius: 2px;
+  background: var(--display);
+  color: rgba(232, 228, 216, 0.28);
+  border: 1px solid transparent;
+}
+.pattern-row.live .pattern-cell.hit {
+  background: var(--led-green);
+  color: var(--display-dim);
+  box-shadow: 0 0 4px rgba(0, 255, 136, 0.5);
+}
+.pattern-row.target .pattern-cell.hit {
+  background: var(--led-cyan);
+  color: var(--display-dim);
+  box-shadow: 0 0 4px rgba(0, 212, 255, 0.5);
+}
+.pattern-row .pattern-cell.mismatch {
+  border-color: var(--led-red);
+  box-shadow: 0 0 0 1px var(--led-red);
+}
+.pattern-row.live .pattern-cell.playing {
+  outline: 2px solid var(--cursor);
+  outline-offset: 1px;
+}
+.match-readout {
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.match-readout.match {
+  color: var(--led-green);
+}
+.match-readout.off {
+  color: var(--led-red);
+}
+
+/* ---- synth defaults: collapsible so six panels' full param lists don't
+ * overwhelm the page by default. Reuses styles.css's .synth-controls/
+ * .param-control markup and look inside a plain <details>. ---- */
+.synth-defaults {
+  border-top: 1px solid var(--plate-border);
+  padding-top: 0.5rem;
+}
+.synth-defaults > summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-transform: lowercase;
+  list-style: none;
+}
+.synth-defaults > summary::-webkit-details-marker {
+  display: none;
+}
+.synth-defaults > summary::before {
+  content: "+ ";
+}
+.synth-defaults[open] > summary::before {
+  content: "\2212 ";
+}
+.synth-defaults .synth-controls {
+  border-top: 0;
+  padding-top: 0.5rem;
+}
+.synth-defaults .synth-controls::before {
+  /* styles.css hardcodes this to "synth"; the <summary> above already
+   * labels the section, so suppress the duplicate. */
+  content: none;
+}
+
+/* ---- note grid hint (kick's octave lock) ---- */
+.note-grid-hint {
+  color: var(--text-secondary);
+  font-size: 9px;
+}
+
+/* ---- export panel ---- */
+.tune-export .export-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.tune-export .export-actions button {
+  background: var(--control-bg);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-control);
+  color: var(--text-button);
+  font-size: 11px;
+  padding: 0.4rem 0.7rem;
+  text-transform: lowercase;
+  transition: border-color 120ms ease;
+}
+.tune-export .export-actions button:hover {
+  border-color: var(--accent);
+}
+.tune-export .copy-status {
+  font-size: 10px;
+  color: var(--text-secondary);
+  min-height: 1.2em;
+  margin-top: 0.3rem;
+}
+.tune-export textarea {
+  width: 100%;
+  min-height: 220px;
+  margin-top: 0.5rem;
+  background: linear-gradient(160deg, var(--display-grad-a), var(--display-grad-b));
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-display);
+  color: var(--text-on-dark);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 0.5rem;
+  resize: vertical;
+}

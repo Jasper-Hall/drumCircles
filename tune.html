@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>drum-circles — tuning desk</title>
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="public/styles.css">
+  <link rel="stylesheet" href="public/tune.css">
+</head>
+<body class="tune-page">
+
+  <header class="bar">
+    <div class="bar-id">
+      <span class="wordmark">drum-circles</span>
+      <span class="tagline">tuning desk — internal</span>
+    </div>
+    <a class="return-link" href="index.html">&larr; app</a>
+  </header>
+
+  <div class="tune-layout">
+
+    <aside class="tune-sidebar">
+
+      <!-- no data-label here: styles.css's .transport already draws its own
+           engraved "[transport]" label, and tune-panel::before would double it. -->
+      <section class="tune-panel">
+        <div class="transport">
+          <button id="playButton">play</button>
+          <label class="bpm">bpm
+            <input type="number" id="bpmControl" value="120" min="60" max="200">
+          </label>
+        </div>
+      </section>
+
+      <section class="tune-panel" data-label="[genre]">
+        <div class="genre-list" id="genreList"></div>
+      </section>
+
+      <section class="tune-panel" data-label="[scale]">
+        <div class="tune-scaleroot">
+          <label>scale
+            <select id="scaleSelect"></select>
+          </label>
+          <label>root
+            <select id="rootNote"></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="tune-panel tune-export" data-label="[export]">
+        <div class="export-actions">
+          <button id="copyBtn" type="button">copy json</button>
+          <button id="downloadBtn" type="button">download</button>
+          <button id="revertBtn" type="button">revert genre</button>
+        </div>
+        <p class="copy-status" id="copyStatus"></p>
+        <textarea id="exportBox" spellcheck="false" aria-label="Tuned state as JSON"></textarea>
+      </section>
+
+    </aside>
+
+    <main class="tune-tracks" id="tuneTracks"></main>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <script src="public/engine.js"></script>
+  <script src="public/synths.js"></script>
+  <script src="public/presets.js"></script>
+  <script src="public/tune.js"></script>
+</body>
+</html>
