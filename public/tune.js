@@ -550,6 +550,7 @@
 
     const play = document.getElementById('playButton');
     play.addEventListener('click', async () => {
+      await unlockAudio();          // engine.js: Tone.start + resume + silent buffer
       await Tone.start();
       if (state.playing) {
         Tone.Transport.stop();
@@ -601,6 +602,7 @@
 
   // ---- boot --------------------------------------------------------------
   document.addEventListener('DOMContentLoaded', () => {
+    setPlaybackAudioSession();   // engine.js: play through the iOS mute switch
     buildAudio();
     buildGenreList();
     buildTracks();

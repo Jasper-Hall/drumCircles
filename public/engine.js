@@ -221,3 +221,55 @@ class EuclideanSequencer {
         return stepsChanged && oldRotation >= this.steps;
     }
 }
+
+
+/* ---- iOS Safari audio ---------------------------------------------------
+ * Shared by index.html and tune.html. Two separate problems, both silent:
+ *  1. The hardware mute switch silences WebAudio unless the page declares a
+ *     'playback' audio session (iOS 17+). Harmless elsewhere.
+ *  2. The AudioContext only starts inside a user gesture, and iOS wants a real
+ *     buffer played through it before it will pass audio at all. Done once on
+ *     the first touch/click/key, and re-armed if iOS suspends the context after
+ *     a lock or app switch.
+ */
+function setPlaybackAudioSession() {
+    try {
+        if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    } catch (e) {
+        /* unsupported (older iOS / other browsers): harmless */
+    }
+}
+
+let audioUnlocked = false;
+async function unlockAudio() {
+    if (audioUnlocked) return;
+    try {
+        // Resumes Tone's context synchronously within the gesture.
+        await Tone.start();
+        const ctx = Tone.context.rawContext || Tone.context;
+        if (ctx.state !== 'running' && ctx.resume) {
+            await ctx.resume();
+        }
+        // A one-sample silent buffer fully wakes the iOS audio pipeline.
+        const buffer = ctx.createBuffer(1, 1, 22050);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start(0);
+        audioUnlocked = true;
+        // iOS can "interrupt" (suspend) the context after a lock/app-switch;
+        // re-arm so the next tap unlocks again.
+        if (ctx.onstatechange === null) {
+            ctx.onstatechange = () => {
+                if (ctx.state !== 'running') audioUnlocked = false;
+            };
+        }
+    } catch (e) {
+        // leave audioUnlocked false so a later gesture retries
+    }
+}
+
+['touchend', 'pointerdown', 'mousedown', 'keydown'].forEach((evt) => {
+    document.addEventListener(evt, unlockAudio, { passive: true });
+});
+
