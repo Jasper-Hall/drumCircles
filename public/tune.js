@@ -33,6 +33,11 @@
   };
 
   const presets = () => window.GENRE_PRESETS || [];
+  // Tuned state persisted back into presets.js. Layered on top of SYNTH_DEFS on
+  // boot so a reload of the desk picks up where the last session left off.
+  const tunedSynth = () => window.SYNTH_DEFAULTS || {};
+  const tunedNotes = () => window.NOTE_SEEDS || {};
+  const tunedScale = () => window.TUNED_SCALE || null;
   const defs = () => window.SYNTH_DEFS || [];
   const genre = () => presets().find(g => g.id === state.genreId);
 
@@ -60,10 +65,19 @@
         synth,
         channel,
         seq: new EuclideanSequencer(16, 0, 0, 100, NEUTRAL_DISTRIBUTION),
-        notes: new Set(),
+        notes: new Set(tunedNotes()[def.id] || []),
         params: {}
       };
+      // Previously dialled synth values become this session's starting point and
+      // stay in the export, so they are not silently dropped on the next save.
+      for (const [path, value] of Object.entries(tunedSynth()[def.id] || {})) {
+        applyParam(state.tracks[def.id], path, value);
+        (state.synthEdits[def.id] ||= {})[path] = value;
+      }
+      if (state.tracks[def.id].notes.size) state.noteSeeds[def.id] = [...state.tracks[def.id].notes];
     }
+    const sc = tunedScale();
+    if (sc) { state.scale = sc.scale || state.scale; state.root = sc.root || state.root; }
   }
 
   // Write a dotted path ('envelope.decay') into a live Tone node. Tone exposes
@@ -194,10 +208,10 @@
       // --- live pattern vs target
       const pat = el('div', 'tune-section pattern-section');
       pat.dataset.label = 'pattern';
-      pat.appendChild(el('div', 'pattern-strip-label', 'live'));
+      pat.appendChild(el('div', 'pattern-strip-label', 'live — what these params play'));
       pat.appendChild(buildStrip(def.id, 'live'));
       if (!def.melodic) {
-        pat.appendChild(el('div', 'pattern-strip-label', 'target'));
+        pat.appendChild(el('div', 'pattern-strip-label', 'target — first-pass guess, being replaced by research'));
         pat.appendChild(buildStrip(def.id, 'target'));
         pat.appendChild(el('div', 'match-readout', '—')).dataset.for = def.id;
       }
@@ -268,6 +282,7 @@
       const b = el('button', 'note-button');
       b.type = 'button';
       b.dataset.index = i;
+      if (state.tracks[trackId].notes.has(i)) b.classList.add('selected');
       b.addEventListener('click', () => {
         const t = state.tracks[trackId];
         if (t.notes.has(i)) t.notes.delete(i); else t.notes.add(i);
@@ -294,14 +309,15 @@
           opt.value = o;
           sel.appendChild(opt);
         }
-        sel.value = spec.default;
+        sel.value = (tunedSynth()[def.id] || {})[path] ?? spec.default;
         sel.addEventListener('change', e => setSynthParam(def.id, path, e.target.value));
         wrap.appendChild(sel);
       } else {
-        const out = el('span', 'value-display', String(spec.default));
+        const start = (tunedSynth()[def.id] || {})[path] ?? spec.default;
+        const out = el('span', 'value-display', String(start));
         const r = el('input');
         r.type = 'range';
-        r.min = spec.min; r.max = spec.max; r.step = spec.step; r.value = spec.default;
+        r.min = spec.min; r.max = spec.max; r.step = spec.step; r.value = start;
         r.addEventListener('input', e => {
           out.textContent = e.target.value;
           setSynthParam(def.id, path, Number(e.target.value));

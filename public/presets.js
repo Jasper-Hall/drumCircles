@@ -1,9 +1,9 @@
-// Genre presets for drum-circles.
-// Params verified against the real engine by tools/genpresets.js -- every entry with
-// verified:true reproduces its target pattern exactly with ONE bar-aligned ring.
-// verified:false entries are NOT reachable with one ring (see tools/dof.js); they carry
-// the nearest reachable params and are excluded from the mobile preset row until
-// boolean masks land.
+// Genre presets for drum-circles -- DIALLED BY EAR on the tuning desk, 2026-09-12.
+// Params are the source of truth. `plays` is what those params actually produce
+// over one bar (recomputed by tools/solve.js). `target` is the first-pass canonical
+// guess and is KNOWN TO BE WRONG for several genres -- a research pass is replacing
+// it; until then treat plays, not target, as the intended pattern.
+// verified:false entries need an OR mask of two rings. See tools/dof.js.
 window.GENRE_PRESETS = [
   {
     "id": "house",
@@ -16,21 +16,24 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x...x...x...x..."
+        "target": "x...x...x...x...",
+        "plays": "x...x...x...x..."
       },
       "snare": {
         "steps": 8,
         "pulses": 1,
         "rotation": 4,
-        "distribution": 50,
-        "target": "....x.......x..."
+        "distribution": 47,
+        "target": "....x.......x...",
+        "plays": "....x.......x..."
       },
       "hat": {
         "steps": 4,
         "pulses": 1,
         "rotation": 2,
         "distribution": 50,
-        "target": "..x...x...x...x."
+        "target": "..x...x...x...x.",
+        "plays": "..x...x...x...x."
       }
     },
     "unreachable": null,
@@ -44,24 +47,48 @@ window.GENRE_PRESETS = [
     "tracks": {
       "kick": {
         "steps": 8,
-        "pulses": 1,
+        "pulses": 2,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.......x......."
+        "target": "x.......x.......",
+        "plays": "x...x...x...x..."
       },
       "snare": {
         "steps": 8,
         "pulses": 2,
-        "rotation": 0,
+        "rotation": 3,
         "distribution": 41,
-        "target": "x..x....x..x...."
+        "target": "x..x....x..x....",
+        "plays": "...x..x....x..x."
       },
       "hat": {
         "steps": 2,
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x."
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "x.x.x.x.x.x.x.x."
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 6,
+        "rotation": 0,
+        "distribution": 50,
+        "plays": "x.x..x..x.x..x.."
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 0,
+        "distribution": 50,
+        "plays": "x...x...x...x..."
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 3,
+        "rotation": 0,
+        "distribution": 50,
+        "plays": "x....x....x....."
       }
     },
     "unreachable": null,
@@ -75,24 +102,48 @@ window.GENRE_PRESETS = [
     "tracks": {
       "kick": {
         "steps": 8,
-        "pulses": 1,
-        "rotation": 0,
-        "distribution": 50,
-        "target": "x.......x......."
-      },
-      "snare": {
-        "steps": 8,
         "pulses": 2,
         "rotation": 0,
         "distribution": 41,
-        "target": "x..x....x..x...."
+        "target": "x.......x.......",
+        "plays": "x..x....x..x...."
+      },
+      "snare": {
+        "steps": 8,
+        "pulses": 1,
+        "rotation": 6,
+        "distribution": 41,
+        "target": "x..x....x..x....",
+        "plays": "......x.......x."
       },
       "hat": {
-        "steps": 2,
-        "pulses": 1,
+        "steps": 16,
+        "pulses": 9,
+        "rotation": 2,
+        "distribution": 61,
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "x...xxx.x.xx.xx."
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 6,
         "rotation": 0,
-        "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x."
+        "distribution": 70,
+        "plays": "....x.x.x.x.x.x."
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 7,
+        "rotation": 0,
+        "distribution": 72,
+        "plays": "....x.xx.x.xx.x."
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 5,
+        "rotation": 0,
+        "distribution": 95,
+        "plays": "..........xxx.xx"
       }
     },
     "unreachable": null,
@@ -109,21 +160,24 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.......x......."
+        "target": "x.......x.......",
+        "plays": "x.......x......."
       },
       "snare": {
         "steps": 8,
         "pulses": 3,
         "rotation": 6,
         "distribution": 37,
-        "target": "x..x..x.x..x..x."
+        "target": "x..x..x.x..x..x.",
+        "plays": "x..x..x.x..x..x."
       },
       "hat": {
         "steps": 2,
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x."
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "x.x.x.x.x.x.x.x."
       }
     },
     "unreachable": null,
@@ -137,24 +191,27 @@ window.GENRE_PRESETS = [
     "tracks": {
       "kick": {
         "steps": 16,
-        "pulses": 5,
-        "rotation": 10,
+        "pulses": 2,
+        "rotation": 0,
         "distribution": 50,
-        "target": "x..x..x...x..x.."
+        "target": "x..x..x...x..x..",
+        "plays": "x.......x......."
       },
       "snare": {
         "steps": 8,
-        "pulses": 1,
-        "rotation": 4,
-        "distribution": 50,
-        "target": "....x.......x..."
+        "pulses": 2,
+        "rotation": 3,
+        "distribution": 41,
+        "target": "....x.......x...",
+        "plays": "...x..x....x..x."
       },
       "hat": {
         "steps": 2,
-        "pulses": 1,
+        "pulses": 0,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x."
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "................"
       }
     },
     "unreachable": null,
@@ -171,21 +228,24 @@ window.GENRE_PRESETS = [
         "pulses": 3,
         "rotation": 6,
         "distribution": 37,
-        "target": "x..x..x.x..x..x."
+        "target": "x..x..x.x..x..x.",
+        "plays": "x..x..x.x..x..x."
       },
       "snare": {
         "steps": 8,
         "pulses": 1,
         "rotation": 4,
         "distribution": 50,
-        "target": "....x.......x..."
+        "target": "....x.......x...",
+        "plays": "....x.......x..."
       },
       "hat": {
         "steps": 2,
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x."
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "x.x.x.x.x.x.x.x."
       }
     },
     "unreachable": null,
@@ -194,7 +254,7 @@ window.GENRE_PRESETS = [
   {
     "id": "bouyon",
     "label": "Bouyon",
-    "bpm": 128,
+    "bpm": 150,
     "verified": true,
     "tracks": {
       "kick": {
@@ -202,21 +262,45 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x...x...x...x..."
+        "target": "x...x...x...x...",
+        "plays": "x...x...x...x..."
       },
       "snare": {
-        "steps": 8,
-        "pulses": 3,
-        "rotation": 6,
-        "distribution": 37,
-        "target": "x..x..x.x..x..x."
+        "steps": 16,
+        "pulses": 5,
+        "rotation": 3,
+        "distribution": 43,
+        "target": "x..x..x.x..x..x.",
+        "plays": "...x..x.x..x..x."
       },
       "hat": {
-        "steps": 1,
-        "pulses": 1,
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 2,
+        "distribution": 50,
+        "target": "xxxxxxxxxxxxxxxx",
+        "plays": "..x...x...x...x."
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 12,
         "rotation": 0,
         "distribution": 50,
-        "target": "xxxxxxxxxxxxxxxx"
+        "plays": "xxx.xxx.xxx.xxx."
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 2,
+        "distribution": 45,
+        "plays": "..x...x..x...x.."
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 0,
+        "distribution": 50,
+        "plays": "x...x...x...x..."
       }
     },
     "unreachable": null,
@@ -233,21 +317,45 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x...x...x...x..."
+        "target": "x...x...x...x...",
+        "plays": "x...x...x...x..."
       },
       "snare": {
         "steps": 8,
-        "pulses": 1,
-        "rotation": 4,
-        "distribution": 50,
-        "target": "....x.......x..."
-      },
-      "hat": {
-        "steps": 2,
-        "pulses": 1,
+        "pulses": 2,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x."
+        "target": "....x.......x...",
+        "plays": "x...x...x...x..."
+      },
+      "hat": {
+        "steps": 4,
+        "pulses": 2,
+        "rotation": 2,
+        "distribution": 24,
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "..xx..xx..xx..xx"
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 2,
+        "distribution": 50,
+        "plays": "..x...x...x...x."
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 2,
+        "distribution": 50,
+        "plays": "..x...x...x...x."
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 11,
+        "distribution": 50,
+        "plays": "...x...x...x...x"
       }
     },
     "unreachable": null,
@@ -264,21 +372,24 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x...x...x...x..."
+        "target": "x...x...x...x...",
+        "plays": "x...x...x...x..."
       },
       "snare": {
         "steps": 8,
         "pulses": 3,
         "rotation": 6,
         "distribution": 37,
-        "target": "x..x..x.x..x..x."
+        "target": "x..x..x.x..x..x.",
+        "plays": "x..x..x.x..x..x."
       },
       "hat": {
         "steps": 4,
         "pulses": 1,
         "rotation": 2,
         "distribution": 50,
-        "target": "..x...x...x...x."
+        "target": "..x...x...x...x.",
+        "plays": "..x...x...x...x."
       }
     },
     "unreachable": null,
@@ -294,22 +405,39 @@ window.GENRE_PRESETS = [
         "steps": 16,
         "pulses": 4,
         "rotation": 0,
-        "distribution": 37,
-        "target": "x..x..x...x....."
+        "distribution": 47,
+        "target": "x..x..x...x.....",
+        "plays": "x...x...x..x...."
       },
       "snare": {
         "steps": 8,
-        "pulses": 1,
-        "rotation": 4,
-        "distribution": 50,
-        "target": "....x.......x..."
+        "pulses": 2,
+        "rotation": 3,
+        "distribution": 41,
+        "target": "....x.......x...",
+        "plays": "...x..x....x..x."
       },
       "hat": {
         "steps": 4,
         "pulses": 1,
         "rotation": 2,
         "distribution": 50,
-        "target": "..x...x...x...x."
+        "target": "..x...x...x...x.",
+        "plays": "..x...x...x...x."
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 7,
+        "rotation": 0,
+        "distribution": 50,
+        "plays": "x.x.x.x..x.x.x.."
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 5,
+        "rotation": 0,
+        "distribution": 50,
+        "plays": "x..x..x..x..x..."
       }
     },
     "unreachable": null,
@@ -326,21 +454,38 @@ window.GENRE_PRESETS = [
         "pulses": 2,
         "rotation": 10,
         "distribution": 39,
-        "target": "x.........x....."
+        "target": "x.........x.....",
+        "plays": "x.........x....."
       },
       "snare": {
         "steps": 16,
-        "pulses": 1,
+        "pulses": 6,
         "rotation": 8,
         "distribution": 50,
-        "target": "........x......."
+        "target": "........x.......",
+        "plays": "x.x..x..x.x..x.."
       },
       "hat": {
-        "steps": 2,
+        "steps": 6,
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x."
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "(polyrhythm N=6)"
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 7,
+        "rotation": 6,
+        "distribution": 50,
+        "plays": ".x.x..x.x.x.x..x"
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 6,
+        "rotation": 0,
+        "distribution": 50,
+        "plays": "x.x..x..x.x..x.."
       }
     },
     "unreachable": null,
@@ -356,24 +501,48 @@ window.GENRE_PRESETS = [
     "tracks": {
       "kick": {
         "steps": 16,
-        "pulses": 2,
-        "rotation": 6,
-        "distribution": 24,
-        "target": "x.....x...x....."
+        "pulses": 3,
+        "rotation": 4,
+        "distribution": 70,
+        "target": "x.....x...x.....",
+        "plays": "x........x...x.."
       },
       "snare": {
-        "steps": 8,
-        "pulses": 1,
+        "steps": 16,
+        "pulses": 2,
         "rotation": 4,
-        "distribution": 50,
-        "target": "....x.......x..."
+        "distribution": 46,
+        "target": "....x.......x...",
+        "plays": "....x......x...."
       },
       "hat": {
-        "steps": 4,
-        "pulses": 1,
-        "rotation": 2,
+        "steps": 16,
+        "pulses": 6,
+        "rotation": 0,
+        "distribution": 78,
+        "target": "..x...x...x...x.",
+        "plays": "......xx.x.xx.x."
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 3,
+        "rotation": 0,
+        "distribution": 46,
+        "plays": "x....x...x......"
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 0,
+        "distribution": 59,
+        "plays": "..x...x..x...x.."
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 3,
+        "rotation": 0,
         "distribution": 50,
-        "target": "..x...x...x...x."
+        "plays": "x....x....x....."
       }
     }
   },
@@ -387,25 +556,92 @@ window.GENRE_PRESETS = [
     "tracks": {
       "kick": {
         "steps": 16,
-        "pulses": 2,
-        "rotation": 10,
-        "distribution": 10,
-        "target": "x.....x...x.x..."
+        "pulses": 3,
+        "rotation": 0,
+        "distribution": 28,
+        "target": "x.....x...x.x...",
+        "plays": "x..x..x........."
       },
       "snare": {
         "steps": 8,
         "pulses": 1,
         "rotation": 4,
         "distribution": 50,
-        "target": "....x.......x..."
+        "target": "....x.......x...",
+        "plays": "....x.......x..."
       },
       "hat": {
-        "steps": 2,
-        "pulses": 1,
+        "steps": 6,
+        "pulses": 6,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x."
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "(polyrhythm N=6)"
       }
     }
   }
 ];
+
+// Synth parameter overrides on top of SYNTH_DEFS (synths.js), dotted paths.
+window.SYNTH_DEFAULTS = {
+  "hat": {
+    "envelope.decay": 0.017,
+    "envelope.release": 0.001
+  },
+  "kick": {
+    "envelope.decay": 0.885,
+    "envelope.sustain": 0.543
+  },
+  "pluck": {
+    "dampening": 7300,
+    "resonance": 0.85,
+    "attackNoise": 2.6
+  },
+  "snare": {
+    "envelope.decay": 0.179
+  },
+  "fm": {
+    "modulationEnvelope.attack": 0.001,
+    "modulationEnvelope.decay": 0.409,
+    "envelope.attack": 0.001,
+    "modulationIndex": 36.2,
+    "harmonicity": 1
+  },
+  "poly": {
+    "envelope.attack": 0.023,
+    "envelope.release": 0.601,
+    "oscillator.spread": 42,
+    "envelope.decay": 0.172
+  }
+};
+
+// Note-grid seeds per track: indices into the 3x8 grid.
+window.NOTE_SEEDS = {
+  "kick": [],
+  "snare": [],
+  "pluck": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    7
+  ],
+  "fm": [
+    4,
+    6,
+    11,
+    15
+  ],
+  "poly": [
+    8,
+    9,
+    16,
+    17,
+    18,
+    20
+  ]
+};
+
+window.TUNED_SCALE = {"scale":"minor","root":"C"};
