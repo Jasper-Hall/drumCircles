@@ -1,9 +1,15 @@
-// Genre presets for drum-circles -- DIALLED BY EAR on the tuning desk, 2026-09-12.
-// Params are the source of truth. `plays` is what those params actually produce
-// over one bar (recomputed by tools/solve.js). `target` is the first-pass canonical
-// guess and is KNOWN TO BE WRONG for several genres -- a research pass is replacing
-// it; until then treat plays, not target, as the intended pattern.
-// verified:false entries need an OR mask of two rings. See tools/dof.js.
+// Genre presets for drum-circles.
+//
+// PARAMS (steps/pulses/rotation/distribution) are the source of truth: dialled by ear on
+// the tuning desk, 2026-09-12. `plays` is what they produce over one bar.
+//
+// TARGET is the researched canonical pattern (tools/research-genres.md, 2026-09-12), with
+// targetConfidence carried from the research: 'high' has a notated source, 'low' means no
+// notated source was found and the ear should win. targetParams is the one-ring setting
+// that reproduces the target exactly, or null if no single ring can.
+//
+// verified:true  = every canonical pattern for this genre is reachable with one ring.
+// verified:false = at least one is not (unreachable says which); needs ring B.
 window.GENRE_PRESETS = [
   {
     "id": "house",
@@ -17,7 +23,13 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 50,
         "target": "x...x...x...x...",
-        "plays": "x...x...x...x..."
+        "plays": "x...x...x...x...",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "snare": {
         "steps": 8,
@@ -25,7 +37,13 @@ window.GENRE_PRESETS = [
         "rotation": 4,
         "distribution": 47,
         "target": "....x.......x...",
-        "plays": "....x.......x..."
+        "plays": "....x.......x...",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 1,
+          "rotation": 4,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 4,
@@ -33,11 +51,20 @@ window.GENRE_PRESETS = [
         "rotation": 2,
         "distribution": 50,
         "target": "..x...x...x...x.",
-        "plays": "..x...x...x...x."
+        "plays": "..x...x...x...x.",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 2,
+          "distribution": 50
+        }
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 124,
+    "targetConfidence": "high",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "reggaeton",
@@ -50,16 +77,28 @@ window.GENRE_PRESETS = [
         "pulses": 2,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.......x.......",
-        "plays": "x...x...x...x..."
+        "target": "x..x....x..x....",
+        "plays": "x...x...x...x...",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 2,
+          "rotation": 7,
+          "distribution": 55
+        }
       },
       "snare": {
         "steps": 8,
         "pulses": 2,
         "rotation": 3,
         "distribution": 41,
-        "target": "x..x....x..x....",
-        "plays": "...x..x....x..x."
+        "target": "...x..x....x..x.",
+        "plays": "...x..x....x..x.",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 2,
+          "rotation": 2,
+          "distribution": 55
+        }
       },
       "hat": {
         "steps": 2,
@@ -67,7 +106,13 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 50,
         "target": "x.x.x.x.x.x.x.x.",
-        "plays": "x.x.x.x.x.x.x.x."
+        "plays": "x.x.x.x.x.x.x.x.",
+        "targetParams": {
+          "steps": 2,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "pluck": {
         "steps": 16,
@@ -92,7 +137,10 @@ window.GENRE_PRESETS = [
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 95,
+    "targetConfidence": "medium-high",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "dancehall",
@@ -105,16 +153,28 @@ window.GENRE_PRESETS = [
         "pulses": 2,
         "rotation": 0,
         "distribution": 41,
-        "target": "x.......x.......",
-        "plays": "x..x....x..x...."
+        "target": "x..x....x..x....",
+        "plays": "x..x....x..x....",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 2,
+          "rotation": 7,
+          "distribution": 55
+        }
       },
       "snare": {
         "steps": 8,
         "pulses": 1,
         "rotation": 6,
         "distribution": 41,
-        "target": "x..x....x..x....",
-        "plays": "......x.......x."
+        "target": "......x.......x.",
+        "plays": "......x.......x.",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 1,
+          "rotation": 6,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 16,
@@ -122,7 +182,13 @@ window.GENRE_PRESETS = [
         "rotation": 2,
         "distribution": 61,
         "target": "x.x.x.x.x.x.x.x.",
-        "plays": "x...xxx.x.xx.xx."
+        "plays": "x...xxx.x.xx.xx.",
+        "targetParams": {
+          "steps": 2,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "pluck": {
         "steps": 16,
@@ -147,7 +213,10 @@ window.GENRE_PRESETS = [
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 100,
+    "targetConfidence": "medium",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "dembow",
@@ -160,62 +229,94 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.......x.......",
-        "plays": "x.......x......."
+        "target": "x...x...x...x...",
+        "plays": "x.......x.......",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "snare": {
         "steps": 8,
         "pulses": 3,
         "rotation": 6,
         "distribution": 37,
-        "target": "x..x..x.x..x..x.",
-        "plays": "x..x..x.x..x..x."
+        "target": "...x..x....x..x.",
+        "plays": "x..x..x.x..x..x.",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 2,
+          "rotation": 2,
+          "distribution": 55
+        }
       },
       "hat": {
         "steps": 2,
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x.",
-        "plays": "x.x.x.x.x.x.x.x."
+        "target": "xxxxxxxxxxxxxxxx",
+        "plays": "x.x.x.x.x.x.x.x.",
+        "targetParams": {
+          "steps": 1,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 122,
+    "targetConfidence": "medium",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "bailefunk",
     "label": "Baile Funk",
     "bpm": 130,
-    "verified": true,
+    "verified": false,
     "tracks": {
       "kick": {
         "steps": 16,
         "pulses": 2,
         "rotation": 0,
         "distribution": 50,
-        "target": "x..x..x...x..x..",
-        "plays": "x.......x......."
+        "target": "x.....x...x.....",
+        "plays": "x.......x.......",
+        "targetParams": null
       },
       "snare": {
         "steps": 8,
         "pulses": 2,
         "rotation": 3,
         "distribution": 41,
-        "target": "....x.......x...",
-        "plays": "...x..x....x..x."
+        "target": "..x...x.....x.x.",
+        "plays": "...x..x....x..x.",
+        "targetParams": null
       },
       "hat": {
         "steps": 2,
         "pulses": 0,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x.",
-        "plays": "................"
+        "target": "x...x...x...x...",
+        "plays": "................",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       }
     },
-    "unreachable": null,
-    "note": null
+    "unreachable": "kick+snare",
+    "note": "canonical kick and snare need a second ring; see tools/dof.js and research-genres.md",
+    "researchBpm": 130,
+    "targetConfidence": "high",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "kuduro",
@@ -228,28 +329,49 @@ window.GENRE_PRESETS = [
         "pulses": 3,
         "rotation": 6,
         "distribution": 37,
-        "target": "x..x..x.x..x..x.",
-        "plays": "x..x..x.x..x..x."
+        "target": "x...x...x...x...",
+        "plays": "x..x..x.x..x..x.",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "snare": {
         "steps": 8,
         "pulses": 1,
         "rotation": 4,
         "distribution": 50,
-        "target": "....x.......x...",
-        "plays": "....x.......x..."
+        "target": "x.....x.........",
+        "plays": "....x.......x...",
+        "targetParams": {
+          "steps": 16,
+          "pulses": 2,
+          "rotation": 13,
+          "distribution": 59
+        }
       },
       "hat": {
         "steps": 2,
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x.",
-        "plays": "x.x.x.x.x.x.x.x."
+        "target": "..xx..xx..xx..xx",
+        "plays": "x.x.x.x.x.x.x.x.",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 2,
+          "rotation": 1,
+          "distribution": 63
+        }
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 140,
+    "targetConfidence": "low",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "bouyon",
@@ -263,15 +385,27 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 50,
         "target": "x...x...x...x...",
-        "plays": "x...x...x...x..."
+        "plays": "x...x...x...x...",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "snare": {
         "steps": 16,
         "pulses": 5,
         "rotation": 3,
         "distribution": 43,
-        "target": "x..x..x.x..x..x.",
-        "plays": "...x..x.x..x..x."
+        "target": "....x.......x...",
+        "plays": "...x..x.x..x..x.",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 1,
+          "rotation": 4,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 16,
@@ -279,7 +413,13 @@ window.GENRE_PRESETS = [
         "rotation": 2,
         "distribution": 50,
         "target": "xxxxxxxxxxxxxxxx",
-        "plays": "..x...x...x...x."
+        "plays": "..x...x...x...x.",
+        "targetParams": {
+          "steps": 1,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "pluck": {
         "steps": 16,
@@ -304,7 +444,10 @@ window.GENRE_PRESETS = [
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 140,
+    "targetConfidence": "low",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "cumbia",
@@ -317,16 +460,28 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x...x...x...x...",
-        "plays": "x...x...x...x..."
+        "target": "x...x.x.x...x.x.",
+        "plays": "x...x...x...x...",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 3,
+          "rotation": 2,
+          "distribution": 65
+        }
       },
       "snare": {
         "steps": 8,
         "pulses": 2,
         "rotation": 0,
         "distribution": 50,
-        "target": "....x.......x...",
-        "plays": "x...x...x...x..."
+        "target": "..x...x...x...x.",
+        "plays": "x...x...x...x...",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 2,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 4,
@@ -334,7 +489,13 @@ window.GENRE_PRESETS = [
         "rotation": 2,
         "distribution": 24,
         "target": "x.x.x.x.x.x.x.x.",
-        "plays": "..xx..xx..xx..xx"
+        "plays": "..xx..xx..xx..xx",
+        "targetParams": {
+          "steps": 2,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "pluck": {
         "steps": 16,
@@ -359,7 +520,10 @@ window.GENRE_PRESETS = [
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 100,
+    "targetConfidence": "medium",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "tribal",
@@ -373,27 +537,48 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 50,
         "target": "x...x...x...x...",
-        "plays": "x...x...x...x..."
+        "plays": "x...x...x...x...",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "snare": {
         "steps": 8,
         "pulses": 3,
         "rotation": 6,
         "distribution": 37,
-        "target": "x..x..x.x..x..x.",
-        "plays": "x..x..x.x..x..x."
+        "target": "..x...x...x...x.",
+        "plays": "x..x..x.x..x..x.",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 2,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 4,
         "pulses": 1,
         "rotation": 2,
         "distribution": 50,
-        "target": "..x...x...x...x.",
-        "plays": "..x...x...x...x."
+        "target": "x.x.x.x.x.x.x.x.",
+        "plays": "..x...x...x...x.",
+        "targetParams": {
+          "steps": 2,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 135,
+    "targetConfidence": "low",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "ukfunky",
@@ -406,16 +591,28 @@ window.GENRE_PRESETS = [
         "pulses": 4,
         "rotation": 0,
         "distribution": 47,
-        "target": "x..x..x...x.....",
-        "plays": "x...x...x..x...."
+        "target": "x...x...x...x...",
+        "plays": "x...x...x..x....",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "snare": {
         "steps": 8,
         "pulses": 2,
         "rotation": 3,
         "distribution": 41,
-        "target": "....x.......x...",
-        "plays": "...x..x....x..x."
+        "target": ".......x.......x",
+        "plays": "...x..x....x..x.",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 1,
+          "rotation": 7,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 4,
@@ -423,7 +620,13 @@ window.GENRE_PRESETS = [
         "rotation": 2,
         "distribution": 50,
         "target": "..x...x...x...x.",
-        "plays": "..x...x...x...x."
+        "plays": "..x...x...x...x.",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 2,
+          "distribution": 50
+        }
       },
       "pluck": {
         "steps": 16,
@@ -441,7 +644,10 @@ window.GENRE_PRESETS = [
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 130,
+    "targetConfidence": "low",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "ukdrill",
@@ -454,8 +660,14 @@ window.GENRE_PRESETS = [
         "pulses": 2,
         "rotation": 10,
         "distribution": 39,
-        "target": "x.........x.....",
-        "plays": "x.........x....."
+        "target": "x.............x.",
+        "plays": "x.........x.....",
+        "targetParams": {
+          "steps": 16,
+          "pulses": 2,
+          "rotation": 3,
+          "distribution": 88
+        }
       },
       "snare": {
         "steps": 16,
@@ -463,15 +675,27 @@ window.GENRE_PRESETS = [
         "rotation": 8,
         "distribution": 50,
         "target": "........x.......",
-        "plays": "x.x..x..x.x..x.."
+        "plays": "x.x..x..x.x..x..",
+        "targetParams": {
+          "steps": 16,
+          "pulses": 1,
+          "rotation": 8,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 6,
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x.",
-        "plays": "(polyrhythm N=6)"
+        "target": "x..x..x.x..x..x.",
+        "plays": "(polyrhythm N=6)",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 3,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "pluck": {
         "steps": 16,
@@ -489,23 +713,32 @@ window.GENRE_PRESETS = [
       }
     },
     "unreachable": null,
-    "note": null
+    "note": null,
+    "researchBpm": 140,
+    "targetConfidence": "medium",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "ukgarage",
     "label": "UK Garage",
     "bpm": 135,
-    "verified": false,
-    "unreachable": "kick",
-    "note": "kick x.....x...x..... needs an OR mask of two rings; not reachable with one ring. See tools/dof.js",
+    "verified": true,
+    "unreachable": null,
+    "note": null,
     "tracks": {
       "kick": {
         "steps": 16,
         "pulses": 3,
         "rotation": 4,
         "distribution": 70,
-        "target": "x.....x...x.....",
-        "plays": "x........x...x.."
+        "target": "x.........x.....",
+        "plays": "x........x...x..",
+        "targetParams": {
+          "steps": 16,
+          "pulses": 2,
+          "rotation": 7,
+          "distribution": 59
+        }
       },
       "snare": {
         "steps": 16,
@@ -513,7 +746,13 @@ window.GENRE_PRESETS = [
         "rotation": 4,
         "distribution": 46,
         "target": "....x.......x...",
-        "plays": "....x......x...."
+        "plays": "....x......x....",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 1,
+          "rotation": 4,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 16,
@@ -521,7 +760,13 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 78,
         "target": "..x...x...x...x.",
-        "plays": "......xx.x.xx.x."
+        "plays": "......xx.x.xx.x.",
+        "targetParams": {
+          "steps": 4,
+          "pulses": 1,
+          "rotation": 2,
+          "distribution": 50
+        }
       },
       "pluck": {
         "steps": 16,
@@ -544,23 +789,32 @@ window.GENRE_PRESETS = [
         "distribution": 50,
         "plays": "x....x....x....."
       }
-    }
+    },
+    "researchBpm": 138,
+    "targetConfidence": "high",
+    "targetSource": "tools/research-genres.md"
   },
   {
     "id": "hyphy",
     "label": "Hyphy",
     "bpm": 105,
-    "verified": false,
-    "unreachable": "kick",
-    "note": "kick x.....x...x.x... needs an OR mask of two rings. See tools/dof.js",
+    "verified": true,
+    "unreachable": null,
+    "note": null,
     "tracks": {
       "kick": {
         "steps": 16,
         "pulses": 3,
         "rotation": 0,
         "distribution": 28,
-        "target": "x.....x...x.x...",
-        "plays": "x..x..x........."
+        "target": "x.......x.......",
+        "plays": "x..x..x.........",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "snare": {
         "steps": 8,
@@ -568,7 +822,13 @@ window.GENRE_PRESETS = [
         "rotation": 4,
         "distribution": 50,
         "target": "....x.......x...",
-        "plays": "....x.......x..."
+        "plays": "....x.......x...",
+        "targetParams": {
+          "steps": 8,
+          "pulses": 1,
+          "rotation": 4,
+          "distribution": 50
+        }
       },
       "hat": {
         "steps": 6,
@@ -576,9 +836,18 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 50,
         "target": "x.x.x.x.x.x.x.x.",
-        "plays": "(polyrhythm N=6)"
+        "plays": "(polyrhythm N=6)",
+        "targetParams": {
+          "steps": 2,
+          "pulses": 1,
+          "rotation": 0,
+          "distribution": 50
+        }
       }
-    }
+    },
+    "researchBpm": 95,
+    "targetConfidence": "low",
+    "targetSource": "tools/research-genres.md"
   }
 ];
 

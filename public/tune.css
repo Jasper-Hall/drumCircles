@@ -310,3 +310,17 @@ body.tune-page {
   padding: 0.5rem;
   resize: vertical;
 }
+
+/* ---- snap-to-canon: only shown when the researched pattern is one-ring
+ * reachable and the live pattern differs from it. ---- */
+.snap-canon {
+  align-self: flex-start;
+  background: var(--control-bg);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-control);
+  color: var(--text-button);
+  font-size: 10px;
+  padding: 0.25rem 0.55rem;
+  text-transform: lowercase;
+}
+.snap-canon:hover { border-color: var(--accent); }

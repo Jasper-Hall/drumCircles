@@ -211,9 +211,24 @@
       pat.appendChild(el('div', 'pattern-strip-label', 'live — what these params play'));
       pat.appendChild(buildStrip(def.id, 'live'));
       if (!def.melodic) {
-        pat.appendChild(el('div', 'pattern-strip-label', 'target — first-pass guess, being replaced by research'));
+        pat.appendChild(el('div', 'pattern-strip-label', 'target — researched canon (see confidence)'));
         pat.appendChild(buildStrip(def.id, 'target'));
         pat.appendChild(el('div', 'match-readout', '—')).dataset.for = def.id;
+        const snap = el('button', 'snap-canon', 'snap to canon');
+        snap.type = 'button';
+        snap.dataset.for = def.id;
+        snap.hidden = true;
+        snap.title = 'Set the four knobs to the one-ring setting that reproduces the researched pattern';
+        snap.addEventListener('click', () => {
+          const g = genre();
+          const tp = g && g.tracks[def.id] && g.tracks[def.id].targetParams;
+          if (!tp) return;
+          state.tracks[def.id].seq.updateParams(tp.steps, tp.pulses, tp.rotation, 100, tp.distribution);
+          recordEdit(def.id);
+          syncTrack(def.id);
+          refreshExport();
+        });
+        pat.appendChild(snap);
       }
       panel.appendChild(pat);
 
@@ -400,9 +415,16 @@
       const off = live.reduce((n, v, i) => n + (v !== target[i] ? 1 : 0), 0);
       const read = document.querySelector('.match-readout[data-for="' + trackId + '"]');
       if (read) {
-        read.textContent = off === 0 ? 'MATCH' : 'OFF BY ' + off;
+        const conf = g.targetConfidence ? '  · research ' + g.targetConfidence : '';
+        read.textContent = (off === 0 ? 'MATCH' : 'OFF BY ' + off) + conf;
         read.classList.toggle('match', off === 0);
         read.classList.toggle('off', off !== 0);
+      }
+      // "snap to canon" is only offered where one ring can actually get there
+      const snap = document.querySelector('.snap-canon[data-for="' + trackId + '"]');
+      if (snap) {
+        const tp = g.tracks[trackId] && g.tracks[trackId].targetParams;
+        snap.hidden = !tp || off === 0;
       }
     }
   }
