@@ -137,6 +137,17 @@
     s.triggerAttackRelease(noteFor(track, notes[track._i]), '16n', time);
   }
 
+  function setSwing(pct) {
+    // Tone's swing is 0-1 on the swingSubdivision; the app's slider is 0-100 on
+    // 16ths, so keep that convention here and in the exported preset.
+    Tone.Transport.swingSubdivision = '16n';
+    Tone.Transport.swing = Math.max(0, Math.min(100, Number(pct) || 0)) / 100;
+    const sl = document.getElementById('swingControl');
+    const out = document.getElementById('swingValue');
+    if (sl) sl.value = pct;
+    if (out) out.textContent = Math.round(pct) + '%';
+  }
+
   function startClock() {
     Tone.Transport.scheduleRepeat((time) => {
       const step = state.step;
@@ -372,7 +383,7 @@
     const g = genre();
     if (!g) return;
     const s = state.tracks[trackId].seq;
-    const e = (state.edits[g.id] ||= { bpm: g.bpm, tracks: {} });
+    const e = (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing || 0, tracks: {} });
     e.tracks[trackId] = {
       steps: s.steps, pulses: s.pulses, rotation: s.rotation, distribution: s.distribution
     };
@@ -462,6 +473,7 @@
     const bpm = (edited && edited.bpm) || g.bpm;
     Tone.Transport.bpm.value = bpm;
     document.getElementById('bpmControl').value = bpm;
+    setSwing((edited && edited.swing != null) ? edited.swing : (g.swing || 0));
 
     for (const def of defs()) {
       const src = (edited && edited.tracks[def.id]) || g.tracks[def.id];
@@ -491,7 +503,7 @@
         tracks[tid] = ed ? { ...ed, target: tp.target } : { ...tp };
       }
       if (e) for (const [tid, tp] of Object.entries(e.tracks)) if (!tracks[tid]) tracks[tid] = { ...tp };
-      return { ...g, bpm: (e && e.bpm) || g.bpm, tracks };
+      return { ...g, bpm: (e && e.bpm) || g.bpm, swing: (e && e.swing != null) ? e.swing : (g.swing || 0), tracks };
     });
     return JSON.stringify({
       presets: out,
@@ -524,7 +536,15 @@
       const v = Number(e.target.value);
       Tone.Transport.bpm.value = v;
       const g = genre();
-      if (g) (state.edits[g.id] ||= { bpm: g.bpm, tracks: {} }).bpm = v;
+      if (g) (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing || 0, tracks: {} }).bpm = v;
+      refreshExport();
+    });
+
+    document.getElementById('swingControl').addEventListener('input', e => {
+      const v = Number(e.target.value);
+      setSwing(v);
+      const g = genre();
+      if (g) (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing || 0, tracks: {} }).swing = v;
       refreshExport();
     });
 

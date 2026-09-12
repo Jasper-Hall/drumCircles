@@ -15,6 +15,7 @@ window.GENRE_PRESETS = [
     "id": "house",
     "label": "House",
     "bpm": 124,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -70,6 +71,7 @@ window.GENRE_PRESETS = [
     "id": "reggaeton",
     "label": "Reggaeton",
     "bpm": 96,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -146,6 +148,7 @@ window.GENRE_PRESETS = [
     "id": "dancehall",
     "label": "Dancehall",
     "bpm": 100,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -222,6 +225,7 @@ window.GENRE_PRESETS = [
     "id": "dembow",
     "label": "Dembow Dominicano",
     "bpm": 115,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -277,6 +281,7 @@ window.GENRE_PRESETS = [
     "id": "bailefunk",
     "label": "Baile Funk",
     "bpm": 130,
+    "swing": 0,
     "verified": false,
     "tracks": {
       "kick": {
@@ -322,6 +327,7 @@ window.GENRE_PRESETS = [
     "id": "kuduro",
     "label": "Kuduro",
     "bpm": 140,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -377,6 +383,7 @@ window.GENRE_PRESETS = [
     "id": "bouyon",
     "label": "Bouyon",
     "bpm": 150,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -453,6 +460,7 @@ window.GENRE_PRESETS = [
     "id": "cumbia",
     "label": "Cumbia",
     "bpm": 95,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -529,6 +537,7 @@ window.GENRE_PRESETS = [
     "id": "tribal",
     "label": "Tribal (Mexican)",
     "bpm": 126,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -584,6 +593,7 @@ window.GENRE_PRESETS = [
     "id": "ukfunky",
     "label": "UK Funky",
     "bpm": 130,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -653,6 +663,7 @@ window.GENRE_PRESETS = [
     "id": "ukdrill",
     "label": "UK Drill",
     "bpm": 142,
+    "swing": 0,
     "verified": true,
     "tracks": {
       "kick": {
@@ -722,6 +733,7 @@ window.GENRE_PRESETS = [
     "id": "ukgarage",
     "label": "UK Garage",
     "bpm": 135,
+    "swing": 0,
     "verified": true,
     "unreachable": null,
     "note": null,
@@ -798,6 +810,7 @@ window.GENRE_PRESETS = [
     "id": "hyphy",
     "label": "Hyphy",
     "bpm": 105,
+    "swing": 0,
     "verified": true,
     "unreachable": null,
     "note": null,
