@@ -10,8 +10,12 @@
  * new name; `legacyId` is the key still used inside groovebox.js, kept so preset
  * data and saved state can be matched up across the rebuild.
  *
- * ORDER MATTERS: kick, snare, hat, then the melodic voices. This is the order
- * the mobile UI swipes through.
+ * ORDER MATTERS: kick, snare, hat, perc, bass, then the melodic voices. This is
+ * the order the mobile UI swipes through.
+ *
+ * ENGINES: 'FaustKickVA' is the MutaxKick virtual-analog engine compiled to
+ * wasm (faust-kick.js). 'Sampler' is a Tone.Sampler over a `kit`, with the
+ * sample chosen by index from a slider. 'MonoSynth' and the rest are Tone.
  *
  * KNOWN DUPLICATION: groovebox.js still constructs its seven tracks inline and
  * does not read this file. That is deliberate for now -- the live app keeps
@@ -20,35 +24,50 @@
  */
 window.SYNTH_DEFS = [
   {
-    id: 'kick', legacyId: 'membrane', label: 'kick', engine: 'MembraneSynth',
+    id: 'kick', legacyId: 'membrane', label: 'kick', engine: 'FaustKickVA',
     melodic: false,
-    // A kick synth: constrain it to the bottom of the range so the note grid
-    // cannot pitch it up into a tom or a bloop.
-    octaveLock: { min: 0, max: 1 },
+    // A kick synth: the note grid only ever chooses a fundamental in the bottom
+    // two octaves (C1 = 32.7 Hz .. B2 = 123 Hz), inside the engine's 20-200 Hz.
+    octaveLock: { min: 1, max: 2 },
+    // The MutaxKick virtual-analog engine (public/engines/kick-va). Names, ranges
+    // and defaults are the plugin's own, from mutaxkick_body.dsp.
     options: {
-      pitchDecay: 0.05, octaves: 10, oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.4, attackCurve: 'exponential' },
-      frequency: 30
+      freq: 60, timbreX: 0.4, timbreY: 0.6, punchDepth: 50, punchLength: 100,
+      contour: 0.5, sustain: 1000, release: 1000, bodyTone: 0.5, level: 0.8
     },
     params: {
-      'frequency':        { min: 20,    max: 200,  step: 1,     default: 30,    label: 'Pitch' },
-      'pitchDecay':       { min: 0.001, max: 0.5,  step: 0.001, default: 0.05,  label: 'Pitch Decay' },
-      'octaves':          { min: 1,     max: 12,   step: 1,     default: 10,    label: 'Octave Range' },
-      'envelope.attack':  { min: 0.001, max: 0.1,  step: 0.001, default: 0.001, label: 'Attack' },
-      'envelope.decay':   { min: 0.001, max: 1,    step: 0.001, default: 0.4,   label: 'Decay' },
-      'envelope.sustain': { min: 0.001, max: 1,    step: 0.001, default: 0.01,  label: 'Sustain' },
-      'envelope.release': { min: 0.001, max: 1,    step: 0.001, default: 0.4,   label: 'Release' }
+      'freq':        { min: 20,  max: 200,  step: 0.1,   default: 60,   label: 'Pitch' },
+      'punchDepth':  { min: 0,   max: 100,  step: 0.1,   default: 50,   label: 'Punch' },
+      'punchLength': { min: 10,  max: 800,  step: 1,     default: 100,  label: 'Punch Length' },
+      'timbreX':     { min: 0,   max: 1,    step: 0.001, default: 0.4,  label: 'Wave (tri>saw>sq>pulse)' },
+      'timbreY':     { min: 0,   max: 1,    step: 0.001, default: 0.6,  label: 'Pulse Width' },
+      'bodyTone':    { min: 0,   max: 1,    step: 0.001, default: 0.5,  label: 'Body Tone' },
+      'contour':     { min: 0,   max: 1,    step: 0.001, default: 0.5,  label: 'Filter Contour' },
+      'sustain':     { min: 10,  max: 2000, step: 1,     default: 1000, label: 'Sustain ms' },
+      'release':     { min: 10,  max: 2000, step: 1,     default: 1000, label: 'Release ms' },
+      'level':       { min: 0,   max: 1,    step: 0.001, default: 0.8,  label: 'Level' }
     }
   },
   {
-    id: 'snare', legacyId: 'noise', label: 'snare', engine: 'NoiseSynth',
+    id: 'snare', legacyId: 'noise', label: 'snare', engine: 'Sampler',
     melodic: false,
-    options: { noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } },
+    // PLACEHOLDERS from lux_s9 until Jasper picks the real ones. Order is the
+    // slider order; `sample` selects by index so it lives with the other
+    // synthesis params rather than as a separate dropdown.
+    kit: [
+      { id: 'snare_01', label: 'hypr 01', file: 'public/samples/snares/snare_01.m4a' },
+      { id: 'snare_02', label: 'hypr 04', file: 'public/samples/snares/snare_02.m4a' },
+      { id: 'snare_03', label: 'hypr 07', file: 'public/samples/snares/snare_03.m4a' },
+      { id: 'snare_04', label: 'hypr 11', file: 'public/samples/snares/snare_04.m4a' },
+      { id: 'snare_05', label: 'gbholna', file: 'public/samples/snares/snare_05.m4a' },
+      { id: 'snare_06', label: 'vestiluted', file: 'public/samples/snares/snare_06.m4a' }
+    ],
+    options: { attack: 0, release: 0.4 },
     params: {
-      'noise.type':       { options: ['white', 'pink', 'brown'], default: 'white', label: 'Colour' },
-      'envelope.attack':  { min: 0.001, max: 1, step: 0.001, default: 0.005, label: 'Attack' },
-      'envelope.decay':   { min: 0.001, max: 1, step: 0.001, default: 0.1,   label: 'Decay' },
-      'envelope.sustain': { min: 0,     max: 1, step: 0.01,  default: 0,     label: 'Sustain' }
+      'sample':  { kind: 'kitIndex', default: 0, label: 'Sample' },
+      'attack':  { min: 0, max: 0.2, step: 0.001, default: 0,   label: 'Attack' },
+      'release': { min: 0.02, max: 2, step: 0.01, default: 0.4, label: 'Release' },
+      'pitch':   { min: -12, max: 12, step: 1, default: 0, label: 'Pitch (st)' }
     }
   },
   {
@@ -67,6 +86,53 @@ window.SYNTH_DEFS = [
       'envelope.attack':  { min: 0.001, max: 1,    step: 0.001, default: 0.001, label: 'Attack' },
       'envelope.decay':   { min: 0.001, max: 2,    step: 0.001, default: 1.4,   label: 'Decay' },
       'envelope.release': { min: 0.001, max: 2,    step: 0.001, default: 0.2,   label: 'Release' }
+    }
+  },
+  {
+    id: 'perc', legacyId: 'smpl', label: 'perc', engine: 'Sampler',
+    melodic: true,
+    // The old sampler track, back for congas / rims / blocks in the genres that
+    // want them. Melodic: the note grid repitches the sample up the scale.
+    // PLACEHOLDERS from lux_s9 until Jasper picks real congas.
+    kit: [
+      { id: 'perc_01', label: '38ksud 06',     file: 'public/samples/percs/perc_01.m4a' },
+      { id: 'perc_02', label: '38ksud 21',     file: 'public/samples/percs/perc_02.m4a' },
+      { id: 'perc_03', label: 'gbholna 02',    file: 'public/samples/percs/perc_03.m4a' },
+      { id: 'perc_04', label: 'gbholna 09',    file: 'public/samples/percs/perc_04.m4a' },
+      { id: 'perc_05', label: 'vestiluted 03', file: 'public/samples/percs/perc_05.m4a' },
+      { id: 'perc_06', label: 'vestiluted 10', file: 'public/samples/percs/perc_06.m4a' },
+      { id: 'perc_07', label: 'vestiluted 15', file: 'public/samples/percs/perc_07.m4a' },
+      { id: 'perc_08', label: 'granvocal 17',  file: 'public/samples/percs/perc_08.m4a' }
+    ],
+    options: { attack: 0, release: 0.3 },
+    params: {
+      'sample':  { kind: 'kitIndex', default: 0, label: 'Sample' },
+      'attack':  { min: 0, max: 0.2, step: 0.001, default: 0,   label: 'Attack' },
+      'release': { min: 0.02, max: 2, step: 0.01, default: 0.3, label: 'Release' },
+      'pitch':   { min: -12, max: 12, step: 1, default: 0, label: 'Pitch (st)' }
+    }
+  },
+  {
+    id: 'bass', legacyId: null, label: 'bass', engine: 'MonoSynth',
+    melodic: true,
+    // Super simple: one oscillator into a lowpass with a short envelope. Locked
+    // to the bottom two octaves so the grid cannot turn it into a lead.
+    octaveLock: { min: 1, max: 2 },
+    options: {
+      oscillator: { type: 'sawtooth' },
+      filter: { type: 'lowpass', Q: 2, rolloff: -24 },
+      filterEnvelope: { attack: 0.005, decay: 0.15, sustain: 0.2, release: 0.2, baseFrequency: 80, octaves: 2.5 },
+      envelope: { attack: 0.005, decay: 0.2, sustain: 0.6, release: 0.15 }
+    },
+    params: {
+      'oscillator.type':            { options: ['sawtooth', 'square', 'triangle', 'sine'], default: 'sawtooth', label: 'Wave' },
+      'filterEnvelope.baseFrequency': { min: 40, max: 800, step: 1, default: 80, label: 'Cutoff' },
+      'filterEnvelope.octaves':     { min: 0, max: 5, step: 0.1, default: 2.5, label: 'Env Amount' },
+      'filterEnvelope.decay':       { min: 0.01, max: 1, step: 0.01, default: 0.15, label: 'Env Decay' },
+      'filter.Q':                   { min: 0, max: 10, step: 0.1, default: 2, label: 'Resonance' },
+      'envelope.decay':             { min: 0.01, max: 1, step: 0.01, default: 0.2, label: 'Decay' },
+      'envelope.sustain':           { min: 0, max: 1, step: 0.01, default: 0.6, label: 'Sustain' },
+      'envelope.release':           { min: 0.01, max: 1, step: 0.01, default: 0.15, label: 'Release' }
     }
   },
   {
@@ -119,8 +185,9 @@ window.SYNTH_DEFS = [
   }
 ];
 
-/* Mixer volume per track, transcribed from setupSynths()'s Tone.Channel setup. */
-window.TRACK_VOLUMES = { kick: -20, snare: -20, hat: -20, pluck: -20, fm: -20, poly: -23 };
+/* Mixer volume per track. The Tone-synth values are transcribed from
+ * setupSynths(); kick/snare/perc/bass are new and set by ear on the desk. */
+window.TRACK_VOLUMES = { kick: -8, snare: -12, hat: -20, perc: -14, bass: -14, pluck: -20, fm: -20, poly: -23 };
 
 /* Scales, transcribed from Groovebox's constructor. */
 window.SCALES = {

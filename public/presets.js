@@ -865,22 +865,17 @@ window.GENRE_PRESETS = [
 ];
 
 // Synth parameter overrides on top of SYNTH_DEFS (synths.js), dotted paths.
+// kick and snare entries were dropped 2026-09-13: they targeted MembraneSynth and
+// NoiseSynth, replaced by the MutaxKick VA engine and a sampler. Re-dial on the desk.
 window.SYNTH_DEFAULTS = {
   "hat": {
     "envelope.decay": 0.017,
     "envelope.release": 0.001
   },
-  "kick": {
-    "envelope.decay": 0.885,
-    "envelope.sustain": 0.543
-  },
   "pluck": {
     "dampening": 7300,
     "resonance": 0.85,
     "attackNoise": 2.6
-  },
-  "snare": {
-    "envelope.decay": 0.179
   },
   "fm": {
     "modulationEnvelope.attack": 0.001,

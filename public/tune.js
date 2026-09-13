@@ -32,6 +32,9 @@
     step: 0
   };
 
+  // Debug handle for the desk (and for in-browser verification).
+  window.__tune = state;
+
   const presets = () => window.GENRE_PRESETS || [];
   // Tuned state persisted back into presets.js. Layered on top of SYNTH_DEFS on
   // boot so a reload of the desk picks up where the last session left off.
@@ -44,25 +47,66 @@
   // ---- audio -------------------------------------------------------------
   // FX sends default to zero -- dry by default is a deliberate change from the
   // current app, where everything arrives pre-soaked in reverb.
-  function buildAudio() {
+  // Tone 14 wraps its context in standardized-audio-context; the AudioWorklet the
+  // kick needs must be constructed on the NATIVE context underneath. That handle
+  // is a private field, but Tone is pinned to 14.8.49 on the CDN so it is stable.
+  function nativeContext() {
+    const rc = Tone.getContext().rawContext;
+    if (rc instanceof AudioContext) return rc;
+    if (rc && rc._nativeAudioContext instanceof AudioContext) return rc._nativeAudioContext;
+    if (rc && rc._nativeContext instanceof AudioContext) return rc._nativeContext;
+    throw new Error('no native AudioContext under Tone.getContext().rawContext');
+  }
+
+  async function buildAudio() {
+    const raw = nativeContext();
     for (const def of defs()) {
       const opts = JSON.parse(JSON.stringify(def.options));
-      let synth;
-      if (def.engine === 'PolySynth') {
-        synth = new Tone.PolySynth(Tone.Synth, opts);
-        if (def.maxPolyphony) synth.maxPolyphony = def.maxPolyphony;
-      } else {
-        synth = new Tone[def.engine](opts);
-      }
+      let synth, kick = null, samplers = null;
       const channel = new Tone.Channel({
         volume: (window.TRACK_VOLUMES || {})[def.id] ?? -20,
         pan: 0
       }).toDestination();
-      synth.connect(channel);
+
+      if (def.engine === 'FaustKickVA') {
+        // The MutaxKick VA engine as an AudioWorklet on the native context Tone
+        // is running on -- same clock, so transport times line up. A native node
+        // cannot be connected into Tone's wrapped graph, so the kick gets its own
+        // native gain straight to the destination; `channel` stays as the volume
+        // source of truth and is mirrored onto that gain.
+        kick = await window.createFaustKick(raw);
+        for (const [k, v] of Object.entries(opts)) kick.set(k, v);
+        const gain = raw.createGain();
+        gain.gain.value = Tone.dbToGain((window.TRACK_VOLUMES || {})[def.id] ?? -20);
+        kick.node.connect(gain);
+        gain.connect(raw.destination);
+        kick.outGain = gain;
+        synth = null;
+      } else if (def.engine === 'Sampler') {
+        // One Tone.Sampler per kit entry, all loaded up front, only the chosen
+        // one wired in -- so switching is instant and never re-fetches.
+        samplers = {};
+        for (const entry of def.kit) {
+          samplers[entry.id] = new Tone.Sampler({ urls: { C3: entry.file }, attack: opts.attack, release: opts.release });
+        }
+        synth = samplers[def.kit[0].id];
+        synth.connect(channel);
+      } else if (def.engine === 'PolySynth') {
+        synth = new Tone.PolySynth(Tone.Synth, opts);
+        if (def.maxPolyphony) synth.maxPolyphony = def.maxPolyphony;
+        synth.connect(channel);
+      } else {
+        synth = new Tone[def.engine](opts);
+        synth.connect(channel);
+      }
 
       state.tracks[def.id] = {
         def,
         synth,
+        kick,
+        samplers,
+        kitIndex: 0,
+        pitchSemis: 0,
         channel,
         seq: new EuclideanSequencer(16, 0, 0, 100, NEUTRAL_DISTRIBUTION),
         notes: new Set(tunedNotes()[def.id] || []),
@@ -84,6 +128,22 @@
   // most of these as Signal/Param objects with a .value, and plain fields
   // otherwise, so both have to be handled.
   function applyParam(track, path, value) {
+    if (track.kick) { track.kick.set(path, value); return; }
+    if (track.samplers) {
+      if (path === 'sample') {
+        const entry = track.def.kit[Math.max(0, Math.min(track.def.kit.length - 1, Math.round(value)))];
+        if (!entry || track.samplers[entry.id] === track.synth) return;
+        track.synth.disconnect();
+        track.synth = track.samplers[entry.id];
+        track.synth.connect(track.channel);
+        track.kitIndex = track.def.kit.indexOf(entry);
+        return;
+      }
+      if (path === 'pitch') { track.pitchSemis = Number(value); return; }
+      // attack / release apply to every sampler in the kit so switching keeps them
+      for (const smp of Object.values(track.samplers)) smp[path] = value;
+      return;
+    }
     const parts = path.split('.');
     let node = track.synth;
     // PolySynth proxies its voices through set().
@@ -125,11 +185,30 @@
 
   function trigger(track, time) {
     const s = track.synth;
-    if (track.def.engine === 'NoiseSynth') { s.triggerAttackRelease('16n', time); return; }
     const notes = [...track.notes];
+    if (track.kick) {
+      // Fundamental from the (octave-locked) grid if any note is chosen, else the
+      // engine's own freq knob. Gate is an AudioParam, so this is sample-accurate.
+      const freq = notes.length ? Tone.Frequency(noteFor(track, notes[0])).toFrequency() : null;
+      track.kick.trigger(time, freq);
+      return;
+    }
+    if (track.samplers && !track.def.melodic) {
+      s.triggerAttackRelease(Tone.Frequency('C3').transpose(track.pitchSemis).toNote(), '8n', time);
+      return;
+    }
+    if (track.def.engine === 'NoiseSynth') { s.triggerAttackRelease('16n', time); return; }
     if (!track.def.melodic) {
       const n = notes.length ? noteFor(track, notes[0]) : (track.def.engine === 'MetalSynth' ? 'C4' : 'C1');
       s.triggerAttackRelease(n, '16n', time);
+      return;
+    }
+    if (track.samplers) {
+      // melodic sampler: the grid repitches the sample around C3
+      if (!notes.length) { s.triggerAttackRelease(Tone.Frequency('C3').transpose(track.pitchSemis).toNote(), '8n', time); return; }
+      track._i = ((track._i || 0) + 1) % notes.length;
+      const midi = Tone.Frequency(noteFor(track, notes[track._i])).toMidi() - 48 + 60 + track.pitchSemis; // grid octave 3 -> C3
+      s.triggerAttackRelease(Tone.Frequency(midi, 'midi').toNote(), '8n', time);
       return;
     }
     if (!notes.length) return;
@@ -328,7 +407,20 @@
     for (const [path, spec] of Object.entries(def.params)) {
       const wrap = el('div', 'param-control');
       wrap.appendChild(el('label', null, spec.label || path));
-      if (spec.options) {
+      if (spec.kind === 'kitIndex') {
+        const start = (tunedSynth()[def.id] || {})[path] ?? spec.default;
+        const out = el('span', 'value-display', def.kit[start] ? def.kit[start].label : String(start));
+        const r = el('input');
+        r.type = 'range';
+        r.min = 0; r.max = def.kit.length - 1; r.step = 1; r.value = start;
+        r.addEventListener('input', e => {
+          const i = Number(e.target.value);
+          out.textContent = def.kit[i] ? def.kit[i].label : String(i);
+          setSynthParam(def.id, path, i);
+        });
+        wrap.appendChild(out);
+        wrap.appendChild(r);
+      } else if (spec.options) {
         const sel = el('select');
         for (const o of spec.options) {
           const opt = el('option', null, o);
@@ -601,9 +693,14 @@
   }
 
   // ---- boot --------------------------------------------------------------
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     setPlaybackAudioSession();   // engine.js: play through the iOS mute switch
-    buildAudio();
+    try {
+      await buildAudio();        // async: the kick compiles its wasm here
+    } catch (e) {
+      console.error('audio build failed', e);
+      status('audio failed to build: ' + (e && e.message ? e.message : e));
+    }
     buildGenreList();
     buildTracks();
     wire();
