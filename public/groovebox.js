@@ -22,7 +22,7 @@ class Groovebox {
         };
 
         // Initialize Tone.js
-        Tone.Transport.bpm.value = 120;
+        Tone.getTransport().bpm.value = 120;
 
         // Initialize audio context and effects
         this.setupEffects();
@@ -425,7 +425,7 @@ class Groovebox {
 
     setupTransport() {
         // Schedule the repeat function
-        Tone.Transport.scheduleRepeat((time) => {
+        Tone.getTransport().scheduleRepeat((time) => {
             this.repeat(time);
         }, "16n");
 
@@ -450,12 +450,12 @@ class Groovebox {
         newPlayButton.addEventListener('click', async () => {
             try {
                 await Tone.start();
-                if (Tone.Transport.state === 'started') {
-                    Tone.Transport.stop();
+                if (Tone.getTransport().state === 'started') {
+                    Tone.getTransport().stop();
                     this.isPlaying = false;
                     newPlayButton.textContent = 'Play';
                 } else {
-                    Tone.Transport.start();
+                    Tone.getTransport().start();
                     this.isPlaying = true;
                     newPlayButton.textContent = 'Stop';
                 }
@@ -468,17 +468,17 @@ class Groovebox {
         // Set up BPM control
         if (bpmControl) {
             bpmControl.addEventListener('input', (e) => {
-                Tone.Transport.bpm.value = parseFloat(e.target.value);
+                Tone.getTransport().bpm.value = parseFloat(e.target.value);
             });
         }
 
-        // Swing: 0-100% mapped to Tone.Transport.swing's 0-1 range.
-        Tone.Transport.swingSubdivision = '16n';
+        // Swing: 0-100% mapped to Tone.getTransport().swing's 0-1 range.
+        Tone.getTransport().swingSubdivision = '16n';
         const swingControl = document.getElementById('swingControl');
         if (swingControl) {
             swingControl.addEventListener('input', (e) => {
                 const percent = parseFloat(e.target.value);
-                Tone.Transport.swing = percent / 100;
+                Tone.getTransport().swing = percent / 100;
                 const display = e.target.parentElement.querySelector('.value-display');
                 if (display) display.textContent = `${Math.round(percent)}%`;
                 this.broadcastStateChange('TRANSPORT_CHANGE', { swing: percent });
@@ -1443,7 +1443,7 @@ class Groovebox {
     handleRemoteTransportChange(data) {
         // Apply transport changes broadcast by another client
         if (typeof data.bpm === 'number' && !Number.isNaN(data.bpm)) {
-            Tone.Transport.bpm.value = data.bpm;
+            Tone.getTransport().bpm.value = data.bpm;
             const bpmControl = document.getElementById('bpmControl');
             if (bpmControl) bpmControl.value = data.bpm;
         }
@@ -1456,7 +1456,7 @@ class Groovebox {
             }
         }
         if (typeof data.swing === 'number' && !Number.isNaN(data.swing)) {
-            Tone.Transport.swing = data.swing / 100;
+            Tone.getTransport().swing = data.swing / 100;
             const swingControl = document.getElementById('swingControl');
             if (swingControl) {
                 swingControl.value = data.swing;

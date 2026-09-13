@@ -223,6 +223,45 @@ class EuclideanSequencer {
 }
 
 
+/* ---- Scheduler hardening ----------------------------------------------
+ * Shared by index.html and tune.html; must run before any Tone node exists,
+ * which is why it sits at load time in this file (loaded right after Tone).
+ *
+ * Symptom this addresses: on a low battery (macOS/iOS Low Power Mode) the
+ * browser coarsens its timers, Tone's ticker fires late, and events land in
+ * the past -- steps bunch up or skip. Tone's defaults (100 ms look-ahead,
+ * 30 ms tick) leave no slack for that. A sequencer has no live input to make
+ * latency matter, so trade it for headroom:
+ *  - latencyHint 'playback': larger hardware buffers, fewer underruns, and
+ *    less CPU per callback (the thing Low Power Mode is starving).
+ *  - lookAhead 300 ms: events are committed to the audio thread well before
+ *    they are due, so a tick that arrives 150 ms late still lands on time.
+ *  - updateInterval 50 ms: fewer, fatter ticks; the Worker clock source is
+ *    kept because Workers are throttled less than main-thread timers.
+ */
+const SCHEDULER = { latencyHint: 'playback', lookAhead: 0.3, updateInterval: 0.05 };
+function hardenScheduler() {
+    try {
+        const ctx = new Tone.Context({
+            latencyHint: SCHEDULER.latencyHint,
+            lookAhead: SCHEDULER.lookAhead,
+            updateInterval: SCHEDULER.updateInterval,
+        });
+        const stale = Tone.getContext();
+        Tone.setContext(ctx);
+        // Tone's global `Tone.Transport` / `Tone.Draw` were captured from the
+        // context that existed at load time; the apps must go through
+        // Tone.getTransport() / Tone.getDraw() so they follow this one.
+        stale.dispose();
+    } catch (e) {
+        // Fall back to tuning the context Tone already made.
+        const ctx = Tone.getContext();
+        ctx.lookAhead = SCHEDULER.lookAhead;
+        ctx.updateInterval = SCHEDULER.updateInterval;
+    }
+}
+hardenScheduler();
+
 /* ---- iOS Safari audio ---------------------------------------------------
  * Shared by index.html and tune.html. Two separate problems, both silent:
  *  1. The hardware mute switch silences WebAudio unless the page declares a

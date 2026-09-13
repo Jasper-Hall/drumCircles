@@ -241,8 +241,8 @@
   function setSwing(pct) {
     // Tone's swing is 0-1 on the swingSubdivision; the app's slider is 0-100 on
     // 16ths, so keep that convention here and in the exported preset.
-    Tone.Transport.swingSubdivision = '16n';
-    Tone.Transport.swing = Math.max(0, Math.min(100, Number(pct) || 0)) / 100;
+    Tone.getTransport().swingSubdivision = '16n';
+    Tone.getTransport().swing = Math.max(0, Math.min(100, Number(pct) || 0)) / 100;
     const sl = document.getElementById('swingControl');
     const out = document.getElementById('swingValue');
     if (sl) sl.value = pct;
@@ -250,13 +250,13 @@
   }
 
   function startClock() {
-    Tone.Transport.scheduleRepeat((time) => {
+    Tone.getTransport().scheduleRepeat((time) => {
       const step = state.step;
       for (const id of Object.keys(state.tracks)) {
         const t = state.tracks[id];
         if (t.seq.pulses > 0 && t.seq.getStep(step)) trigger(t, time);
       }
-      Tone.Draw.schedule(() => paintPlayhead(step), time);
+      Tone.getDraw().schedule(() => paintPlayhead(step), time);
       state.step = (state.step + 1) % BAR_STEPS;
     }, '16n');
   }
@@ -587,7 +587,7 @@
     const edited = state.edits[id];
 
     const bpm = (edited && edited.bpm) || g.bpm;
-    Tone.Transport.bpm.value = bpm;
+    Tone.getTransport().bpm.value = bpm;
     document.getElementById('bpmControl').value = bpm;
     setSwing((edited && edited.swing != null) ? edited.swing : (g.swing || 0));
 
@@ -670,7 +670,7 @@
 
     document.getElementById('bpmControl').addEventListener('change', e => {
       const v = Number(e.target.value);
-      Tone.Transport.bpm.value = v;
+      Tone.getTransport().bpm.value = v;
       const g = genre();
       if (g) editFor(g).bpm = v;
       refreshExport();
@@ -689,13 +689,13 @@
       await unlockAudio();          // engine.js: Tone.start + resume + silent buffer
       await Tone.start();
       if (state.playing) {
-        Tone.Transport.stop();
+        Tone.getTransport().stop();
         state.playing = false;
         state.step = 0;
         play.textContent = 'play';
         play.classList.remove('active');
       } else {
-        Tone.Transport.start();
+        Tone.getTransport().start();
         state.playing = true;
         play.textContent = 'stop';
         play.classList.add('active');

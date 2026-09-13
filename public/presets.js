@@ -1,7 +1,7 @@
 // Genre presets for drum-circles.
 //
 // PARAMS (steps/pulses/rotation/distribution) are the source of truth: dialled by ear on
-// the tuning desk, 2026-09-12. `plays` is what they produce over one bar.
+// the tuning desk, 2026-09-13. `plays` is what they produce over one bar.
 //
 // TARGET is the researched canonical pattern (tools/research-genres.md, 2026-09-12), with
 // targetConfidence carried from the research: 'high' has a notated source, 'low' means no
@@ -10,12 +10,13 @@
 //
 // verified:true  = every canonical pattern for this genre is reachable with one ring.
 // verified:false = at least one is not (unreachable says which); needs ring B.
+
 window.GENRE_PRESETS = [
   {
     "id": "house",
     "label": "House",
     "bpm": 124,
-    "swing": 0,
+    "swing": 37,
     "verified": true,
     "tracks": {
       "kick": {
@@ -49,23 +50,75 @@ window.GENRE_PRESETS = [
       "hat": {
         "steps": 4,
         "pulses": 1,
+        "rotation": 1,
+        "distribution": 63,
+        "target": "..x...x...x...x."
+      },
+      "bass": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 3,
+        "distribution": 37
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 5,
+        "rotation": 0,
+        "distribution": 40
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 5,
         "rotation": 2,
-        "distribution": 50,
-        "target": "..x...x...x...x.",
-        "plays": "..x...x...x...x.",
-        "targetParams": {
-          "steps": 4,
-          "pulses": 1,
-          "rotation": 2,
-          "distribution": 50
-        }
+        "distribution": 34
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 1,
+        "rotation": 15,
+        "distribution": 50
       }
     },
     "unreachable": null,
     "note": null,
     "researchBpm": 124,
     "targetConfidence": "high",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "punchDepth": 84,
+        "punchLength": 123,
+        "bodyTone": 0.096,
+        "timbreX": 0.791,
+        "sustain": 46,
+        "release": 152
+      },
+      "snare": {
+        "sample": 4
+      },
+      "hat": {
+        "envelope.attack": 0.041
+      },
+      "fm": {
+        "harmonicity": 8,
+        "modulationIndex": 4.4,
+        "modulationEnvelope.attack": 0.001,
+        "modulationEnvelope.decay": 0.007,
+        "modulationEnvelope.release": 0.001,
+        "envelope.decay": 0.167,
+        "envelope.release": 0.034,
+        "envelope.sustain": 0.15,
+        "envelope.attack": 0.001
+      },
+      "poly": {
+        "envelope.release": 0.113
+      },
+      "bass": {
+        "envelope.decay": 0.14,
+        "filter.Q": 4.8,
+        "filterEnvelope.baseFrequency": 131
+      }
+    }
   },
   {
     "id": "reggaeton",
@@ -142,7 +195,22 @@ window.GENRE_PRESETS = [
     "note": null,
     "researchBpm": 95,
     "targetConfidence": "medium-high",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "sustain": 115,
+        "release": 183,
+        "timbreX": 0.817,
+        "timbreY": 0.762,
+        "bodyTone": 0.083,
+        "contour": 0.851,
+        "punchDepth": 80.4,
+        "punchLength": 181
+      },
+      "snare": {
+        "release": 0.03
+      }
+    }
   },
   {
     "id": "dancehall",
@@ -213,13 +281,43 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 95,
         "plays": "..........xxx.xx"
+      },
+      "perc": {
+        "steps": 16,
+        "pulses": 3,
+        "rotation": 15,
+        "distribution": 95
       }
     },
     "unreachable": null,
     "note": null,
     "researchBpm": 100,
     "targetConfidence": "medium",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "timbreX": 0.972,
+        "contour": 0.307,
+        "bodyTone": 0.029,
+        "sustain": 200,
+        "release": 234,
+        "punchDepth": 25.7,
+        "freq": 60.3
+      },
+      "snare": {
+        "sample": 0,
+        "release": 0.02,
+        "pitch": 0
+      },
+      "fm": {
+        "modulationIndex": 3,
+        "envelope.release": 0.001,
+        "harmonicity": 8,
+        "modulationEnvelope.attack": 0.001,
+        "modulationEnvelope.decay": 0.001,
+        "modulationEnvelope.release": 0.001
+      }
+    }
   },
   {
     "id": "dembow",
@@ -275,7 +373,15 @@ window.GENRE_PRESETS = [
     "note": null,
     "researchBpm": 122,
     "targetConfidence": "medium",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "sustain": 236,
+        "release": 248,
+        "bodyTone": 0.082,
+        "timbreX": 0.735
+      }
+    }
   },
   {
     "id": "bailefunk",
@@ -321,7 +427,8 @@ window.GENRE_PRESETS = [
     "note": "canonical kick and snare need a second ring; see tools/dof.js and research-genres.md",
     "researchBpm": 130,
     "targetConfidence": "high",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {}
   },
   {
     "id": "kuduro",
@@ -377,7 +484,8 @@ window.GENRE_PRESETS = [
     "note": null,
     "researchBpm": 140,
     "targetConfidence": "low",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {}
   },
   {
     "id": "bouyon",
@@ -448,13 +556,47 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 50,
         "plays": "x...x...x...x..."
+      },
+      "perc": {
+        "steps": 16,
+        "pulses": 5,
+        "rotation": 4,
+        "distribution": 34
+      },
+      "bass": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 6,
+        "distribution": 50
       }
     },
     "unreachable": null,
     "note": null,
     "researchBpm": 140,
     "targetConfidence": "low",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "sustain": 67,
+        "contour": 0.77,
+        "release": 113,
+        "bodyTone": 0.02,
+        "timbreX": 0.83,
+        "punchDepth": 21.8,
+        "punchLength": 43
+      },
+      "perc": {
+        "sample": 4
+      },
+      "snare": {
+        "sample": 4
+      },
+      "bass": {
+        "filterEnvelope.octaves": 0.3,
+        "oscillator.type": "sine",
+        "filterEnvelope.baseFrequency": 590
+      }
+    }
   },
   {
     "id": "cumbia",
@@ -468,14 +610,7 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x...x.x.x...x.x.",
-        "plays": "x...x...x...x...",
-        "targetParams": {
-          "steps": 8,
-          "pulses": 3,
-          "rotation": 2,
-          "distribution": 65
-        }
+        "target": "x...x.x.x...x.x."
       },
       "snare": {
         "steps": 8,
@@ -525,13 +660,38 @@ window.GENRE_PRESETS = [
         "rotation": 11,
         "distribution": 50,
         "plays": "...x...x...x...x"
+      },
+      "bass": {
+        "steps": 8,
+        "pulses": 3,
+        "rotation": 2,
+        "distribution": 65
       }
     },
     "unreachable": null,
     "note": null,
     "researchBpm": 100,
     "targetConfidence": "medium",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "sustain": 72,
+        "release": 216,
+        "timbreX": 0.676,
+        "bodyTone": 0.044
+      },
+      "bass": {
+        "filterEnvelope.baseFrequency": 270,
+        "filterEnvelope.octaves": 0,
+        "filterEnvelope.decay": 0.33,
+        "filter.Q": 0.4,
+        "envelope.decay": 0.23,
+        "envelope.release": 0.16
+      },
+      "snare": {
+        "sample": 4
+      }
+    }
   },
   {
     "id": "tribal",
@@ -587,13 +747,14 @@ window.GENRE_PRESETS = [
     "note": null,
     "researchBpm": 135,
     "targetConfidence": "low",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {}
   },
   {
     "id": "ukfunky",
     "label": "UK Funky",
     "bpm": 130,
-    "swing": 0,
+    "swing": 24,
     "verified": true,
     "tracks": {
       "kick": {
@@ -611,18 +772,11 @@ window.GENRE_PRESETS = [
         }
       },
       "snare": {
-        "steps": 8,
-        "pulses": 2,
+        "steps": 16,
+        "pulses": 3,
         "rotation": 3,
-        "distribution": 41,
-        "target": ".......x.......x",
-        "plays": "...x..x....x..x.",
-        "targetParams": {
-          "steps": 8,
-          "pulses": 1,
-          "rotation": 7,
-          "distribution": 50
-        }
+        "distribution": 6,
+        "target": ".......x.......x"
       },
       "hat": {
         "steps": 4,
@@ -651,13 +805,36 @@ window.GENRE_PRESETS = [
         "rotation": 0,
         "distribution": 50,
         "plays": "x..x..x..x..x..."
+      },
+      "perc": {
+        "steps": 16,
+        "pulses": 2,
+        "rotation": 3,
+        "distribution": 17
       }
     },
     "unreachable": null,
     "note": null,
     "researchBpm": 130,
     "targetConfidence": "low",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "punchLength": 124,
+        "contour": 0.654,
+        "bodyTone": 0.071,
+        "timbreX": 0.768,
+        "release": 245,
+        "sustain": 122
+      },
+      "snare": {
+        "pitch": 8,
+        "sample": 4
+      },
+      "perc": {
+        "sample": 3
+      }
+    }
   },
   {
     "id": "ukdrill",
@@ -669,88 +846,87 @@ window.GENRE_PRESETS = [
       "kick": {
         "steps": 16,
         "pulses": 2,
-        "rotation": 10,
-        "distribution": 39,
-        "target": "x.............x.",
-        "plays": "x.........x.....",
-        "targetParams": {
-          "steps": 16,
-          "pulses": 2,
-          "rotation": 3,
-          "distribution": 88
-        }
+        "rotation": 12,
+        "distribution": 24,
+        "target": "x.............x."
       },
       "snare": {
         "steps": 16,
-        "pulses": 6,
+        "pulses": 1,
         "rotation": 8,
         "distribution": 50,
-        "target": "........x.......",
-        "plays": "x.x..x..x.x..x..",
-        "targetParams": {
-          "steps": 16,
-          "pulses": 1,
-          "rotation": 8,
-          "distribution": 50
-        }
+        "target": "........x......."
       },
       "hat": {
-        "steps": 6,
-        "pulses": 1,
+        "steps": 8,
+        "pulses": 3,
         "rotation": 0,
         "distribution": 50,
-        "target": "x..x..x.x..x..x.",
-        "plays": "(polyrhythm N=6)",
-        "targetParams": {
-          "steps": 8,
-          "pulses": 3,
-          "rotation": 0,
-          "distribution": 50
-        }
+        "target": "x..x..x.x..x..x."
       },
       "pluck": {
         "steps": 16,
-        "pulses": 7,
-        "rotation": 6,
-        "distribution": 50,
-        "plays": ".x.x..x.x.x.x..x"
+        "pulses": 0,
+        "rotation": 0,
+        "distribution": 50
       },
       "fm": {
         "steps": 16,
-        "pulses": 6,
+        "pulses": 0,
         "rotation": 0,
-        "distribution": 50,
-        "plays": "x.x..x..x.x..x.."
+        "distribution": 50
+      },
+      "perc": {
+        "steps": 8,
+        "pulses": 0,
+        "rotation": 0,
+        "distribution": 50
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 3,
+        "rotation": 0,
+        "distribution": 37
       }
     },
     "unreachable": null,
     "note": null,
     "researchBpm": 140,
     "targetConfidence": "medium",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "sustain": 467,
+        "release": 66,
+        "timbreX": 0.012,
+        "bodyTone": 1,
+        "contour": 0.289,
+        "punchDepth": 7.2
+      },
+      "snare": {
+        "sample": 3,
+        "pitch": 4
+      },
+      "perc": {
+        "sample": 0
+      }
+    }
   },
   {
     "id": "ukgarage",
     "label": "UK Garage",
     "bpm": 135,
-    "swing": 0,
+    "swing": 28,
     "verified": true,
     "unreachable": null,
     "note": null,
     "tracks": {
       "kick": {
         "steps": 16,
-        "pulses": 3,
-        "rotation": 4,
-        "distribution": 70,
-        "target": "x.........x.....",
-        "plays": "x........x...x..",
-        "targetParams": {
-          "steps": 16,
-          "pulses": 2,
-          "rotation": 7,
-          "distribution": 59
-        }
+        "pulses": 2,
+        "rotation": 5,
+        "distribution": 68,
+        "target": "x.........x....."
       },
       "snare": {
         "steps": 16,
@@ -768,17 +944,10 @@ window.GENRE_PRESETS = [
       },
       "hat": {
         "steps": 16,
-        "pulses": 6,
+        "pulses": 8,
         "rotation": 0,
-        "distribution": 78,
-        "target": "..x...x...x...x.",
-        "plays": "......xx.x.xx.x.",
-        "targetParams": {
-          "steps": 4,
-          "pulses": 1,
-          "rotation": 2,
-          "distribution": 50
-        }
+        "distribution": 83,
+        "target": "..x...x...x...x."
       },
       "pluck": {
         "steps": 16,
@@ -789,10 +958,9 @@ window.GENRE_PRESETS = [
       },
       "fm": {
         "steps": 16,
-        "pulses": 4,
-        "rotation": 0,
-        "distribution": 59,
-        "plays": "..x...x..x...x.."
+        "pulses": 3,
+        "rotation": 1,
+        "distribution": 56
       },
       "poly": {
         "steps": 16,
@@ -804,12 +972,39 @@ window.GENRE_PRESETS = [
     },
     "researchBpm": 138,
     "targetConfidence": "high",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "contour": 0.043,
+        "sustain": 115,
+        "release": 194,
+        "punchDepth": 59.3,
+        "punchLength": 201,
+        "bodyTone": 0.114,
+        "timbreX": 0.266
+      },
+      "bass": {
+        "envelope.decay": 0.2
+      },
+      "fm": {
+        "envelope.release": 0.07,
+        "harmonicity": 0.5,
+        "modulationIndex": 8.9
+      },
+      "snare": {
+        "release": 0.02,
+        "sample": 0
+      },
+      "poly": {
+        "oscillator.type": "fatsquare",
+        "envelope.release": 0.034
+      }
+    }
   },
   {
     "id": "hyphy",
     "label": "Hyphy",
-    "bpm": 105,
+    "bpm": 102,
     "swing": 0,
     "verified": true,
     "unreachable": null,
@@ -817,17 +1012,10 @@ window.GENRE_PRESETS = [
     "tracks": {
       "kick": {
         "steps": 16,
-        "pulses": 3,
+        "pulses": 4,
         "rotation": 0,
-        "distribution": 28,
-        "target": "x.......x.......",
-        "plays": "x..x..x.........",
-        "targetParams": {
-          "steps": 8,
-          "pulses": 1,
-          "rotation": 0,
-          "distribution": 50
-        }
+        "distribution": 30,
+        "target": "x.......x......."
       },
       "snare": {
         "steps": 8,
@@ -844,29 +1032,78 @@ window.GENRE_PRESETS = [
         }
       },
       "hat": {
-        "steps": 6,
-        "pulses": 6,
+        "steps": 16,
+        "pulses": 3,
         "rotation": 0,
-        "distribution": 50,
-        "target": "x.x.x.x.x.x.x.x.",
-        "plays": "(polyrhythm N=6)",
-        "targetParams": {
-          "steps": 2,
-          "pulses": 1,
-          "rotation": 0,
-          "distribution": 50
-        }
+        "distribution": 18,
+        "target": "x.x.x.x.x.x.x.x."
+      },
+      "perc": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 15,
+        "distribution": 96
+      },
+      "bass": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 14,
+        "distribution": 92
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 14,
+        "distribution": 90
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 5,
+        "rotation": 0,
+        "distribution": 50
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 2,
+        "distribution": 37
       }
     },
     "researchBpm": 95,
     "targetConfidence": "low",
-    "targetSource": "tools/research-genres.md"
+    "targetSource": "tools/research-genres.md",
+    "synth": {
+      "kick": {
+        "sustain": 10,
+        "release": 529,
+        "bodyTone": 0.299,
+        "timbreX": 0,
+        "punchDepth": 12.3,
+        "contour": 0.376
+      },
+      "perc": {
+        "sample": 1
+      },
+      "snare": {
+        "sample": 3,
+        "release": 0.02,
+        "pitch": 7
+      },
+      "bass": {
+        "filterEnvelope.octaves": 3,
+        "filter.Q": 2.8,
+        "oscillator.type": "square"
+      },
+      "poly": {
+        "envelope.sustain": 0.21,
+        "oscillator.spread": 67,
+        "oscillator.type": "fatsquare"
+      }
+    }
   }
 ];
 
-// Synth parameter overrides on top of SYNTH_DEFS (synths.js), dotted paths.
-// kick and snare entries were dropped 2026-09-13: they targeted MembraneSynth and
-// NoiseSynth, replaced by the MutaxKick VA engine and a sampler. Re-dial on the desk.
+// Synth params shared by every genre; a genre's own `synth` block overrides these.
 window.SYNTH_DEFAULTS = {
   "hat": {
     "envelope.decay": 0.017,
@@ -892,33 +1129,31 @@ window.SYNTH_DEFAULTS = {
   }
 };
 
-// Note-grid seeds per track: indices into the 3x8 grid.
+// Scale-degree indices seeded into each melodic track's note grid.
 window.NOTE_SEEDS = {
-  "kick": [],
-  "snare": [],
   "pluck": [
     0,
     1,
-    2,
-    3,
-    4,
-    5,
-    7
+    2
   ],
   "fm": [
-    4,
-    6,
     11,
-    15
+    12
   ],
   "poly": [
-    8,
-    9,
-    16,
-    17,
-    18,
-    20
+    0,
+    1,
+    3,
+    14
+  ],
+  "kick": [
+    10
+  ],
+  "bass": [
+    10,
+    13,
+    14
   ]
 };
 
-window.TUNED_SCALE = {"scale":"minor","root":"C"};
+window.TUNED_SCALE = {"scale":"phrygian","root":"C"};
