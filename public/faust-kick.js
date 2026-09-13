@@ -41,12 +41,20 @@ window.createFaustKick = async function createFaustKick(rawContext, opts = {}) {
         node,
         meta,
         prefix,
-        /** Immediate parameter change, e.g. from a slider. */
+        /** Immediate parameter change, e.g. from a slider.
+         *  Written to the AudioParam, NOT via setParamValue(): faustwasm reads
+         *  every AudioParam each block and pushes it to the DSP, so a value set
+         *  by message is overwritten by the param's own (default) value on the
+         *  next block. The AudioParam is the single source of truth here. */
         set(name, value) {
-            node.setParamValue(prefix + name, Number(value));
+            const p = param(name);
+            if (!p) return;
+            p.cancelScheduledValues(rawContext.currentTime);
+            p.setValueAtTime(Number(value), rawContext.currentTime);
         },
         get(name) {
-            return node.getParamValue(prefix + name);
+            const p = param(name);
+            return p ? p.value : undefined;
         },
         /** Fire one hit at transport time `time` (seconds, context clock). */
         trigger(time, freq) {

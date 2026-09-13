@@ -25,8 +25,7 @@
     scale: 'minor',
     root: 'C',
     tracks: {},          // id -> { seq, synth, channel, notes:Set, params:{} }
-    edits: {},           // genreId -> { bpm, tracks:{id:{steps,pulses,rotation,distribution}} }
-    synthEdits: {},      // trackId -> { 'envelope.decay': 0.3, ... }
+    edits: {},           // genreId -> { bpm, swing, tracks:{...}, synth:{trackId:{path:value}} }
     noteSeeds: {},       // trackId -> [indices]
     playing: false,
     step: 0
@@ -43,6 +42,30 @@
   const tunedScale = () => window.TUNED_SCALE || null;
   const defs = () => window.SYNTH_DEFS || [];
   const genre = () => presets().find(g => g.id === state.genreId);
+
+  // Synth params are PER GENRE. Resolution order, later wins:
+  //   SYNTH_DEFS spec default  <  SYNTH_DEFAULTS (global, from presets.js)
+  //   <  genre.synth[track] (shipped)  <  this session's edits for the genre.
+  // Every param is resolved on every genre switch so nothing leaks between genres.
+  function resolvedSynth(trackId) {
+    const def = defs().find(d => d.id === trackId);
+    const g = genre();
+    const e = g && state.edits[g.id];
+    const out = {};
+    for (const [path, spec] of Object.entries(def.params)) {
+      let v = spec.default;
+      const glob = tunedSynth()[trackId];
+      if (glob && glob[path] != null) v = glob[path];
+      const shipped = g && g.synth && g.synth[trackId];
+      if (shipped && shipped[path] != null) v = shipped[path];
+      const ed = e && e.synth && e.synth[trackId];
+      if (ed && ed[path] != null) v = ed[path];
+      out[path] = v;
+    }
+    return out;
+  }
+
+  const editFor = (g) => (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing || 0, tracks: {}, synth: {} });
 
   // ---- audio -------------------------------------------------------------
   // FX sends default to zero -- dry by default is a deliberate change from the
@@ -116,7 +139,6 @@
       // stay in the export, so they are not silently dropped on the next save.
       for (const [path, value] of Object.entries(tunedSynth()[def.id] || {})) {
         applyParam(state.tracks[def.id], path, value);
-        (state.synthEdits[def.id] ||= {})[path] = value;
       }
       if (state.tracks[def.id].notes.size) state.noteSeeds[def.id] = [...state.tracks[def.id].notes];
     }
@@ -407,11 +429,12 @@
     for (const [path, spec] of Object.entries(def.params)) {
       const wrap = el('div', 'param-control');
       wrap.appendChild(el('label', null, spec.label || path));
+      const cid = 'syn-' + def.id + '-' + path.replace(/\./g, '_');
       if (spec.kind === 'kitIndex') {
         const start = (tunedSynth()[def.id] || {})[path] ?? spec.default;
         const out = el('span', 'value-display', def.kit[start] ? def.kit[start].label : String(start));
         const r = el('input');
-        r.type = 'range';
+        r.type = 'range'; r.id = cid;
         r.min = 0; r.max = def.kit.length - 1; r.step = 1; r.value = start;
         r.addEventListener('input', e => {
           const i = Number(e.target.value);
@@ -421,7 +444,7 @@
         wrap.appendChild(out);
         wrap.appendChild(r);
       } else if (spec.options) {
-        const sel = el('select');
+        const sel = el('select'); sel.id = cid;
         for (const o of spec.options) {
           const opt = el('option', null, o);
           opt.value = o;
@@ -434,7 +457,7 @@
         const start = (tunedSynth()[def.id] || {})[path] ?? spec.default;
         const out = el('span', 'value-display', String(start));
         const r = el('input');
-        r.type = 'range';
+        r.type = 'range'; r.id = cid;
         r.min = spec.min; r.max = spec.max; r.step = spec.step; r.value = start;
         r.addEventListener('input', e => {
           out.textContent = e.target.value;
@@ -467,7 +490,8 @@
 
   function setSynthParam(trackId, path, value) {
     applyParam(state.tracks[trackId], path, value);
-    (state.synthEdits[trackId] ||= {})[path] = value;
+    const g = genre();
+    if (g) ((editFor(g).synth ||= {})[trackId] ||= {})[path] = value;
     refreshExport();
   }
 
@@ -475,7 +499,7 @@
     const g = genre();
     if (!g) return;
     const s = state.tracks[trackId].seq;
-    const e = (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing || 0, tracks: {} });
+    const e = editFor(g);
     e.tracks[trackId] = {
       steps: s.steps, pulses: s.pulses, rotation: s.rotation, distribution: s.distribution
     };
@@ -580,6 +604,23 @@
       syncTrack(def.id);
     }
 
+    // Synth params follow the genre. Apply the resolved set to the engines and
+    // repaint the controls so what you see is what the genre sounds like.
+    for (const def of defs()) {
+      const vals = resolvedSynth(def.id);
+      for (const [path, v] of Object.entries(vals)) {
+        applyParam(state.tracks[def.id], path, v);
+        const c = document.getElementById('syn-' + def.id + '-' + path.replace(/\./g, '_'));
+        if (!c) continue;
+        c.value = v;
+        const disp = c.parentElement && c.parentElement.querySelector('.value-display');
+        if (disp) {
+          const spec = def.params[path];
+          disp.textContent = (spec.kind === 'kitIndex' && def.kit[v]) ? def.kit[v].label : String(v);
+        }
+      }
+    }
+
     document.querySelectorAll('.genre-item').forEach(b =>
       b.classList.toggle('selected', b.dataset.genre === id));
     refreshExport();
@@ -595,11 +636,14 @@
         tracks[tid] = ed ? { ...ed, target: tp.target } : { ...tp };
       }
       if (e) for (const [tid, tp] of Object.entries(e.tracks)) if (!tracks[tid]) tracks[tid] = { ...tp };
-      return { ...g, bpm: (e && e.bpm) || g.bpm, swing: (e && e.swing != null) ? e.swing : (g.swing || 0), tracks };
+      const synth = {};
+      for (const tid of Object.keys(g.synth || {})) synth[tid] = { ...(g.synth[tid]) };
+      if (e && e.synth) for (const [tid, ps] of Object.entries(e.synth)) synth[tid] = { ...(synth[tid] || {}), ...ps };
+      return { ...g, bpm: (e && e.bpm) || g.bpm, swing: (e && e.swing != null) ? e.swing : (g.swing || 0), tracks, synth };
     });
     return JSON.stringify({
       presets: out,
-      synthDefaults: state.synthEdits,
+      synthDefaults: tunedSynth(),   // the global base layer, unchanged by the desk
       noteSeeds: state.noteSeeds,
       scale: state.scale,
       root: state.root
@@ -628,7 +672,7 @@
       const v = Number(e.target.value);
       Tone.Transport.bpm.value = v;
       const g = genre();
-      if (g) (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing || 0, tracks: {} }).bpm = v;
+      if (g) editFor(g).bpm = v;
       refreshExport();
     });
 
@@ -636,7 +680,7 @@
       const v = Number(e.target.value);
       setSwing(v);
       const g = genre();
-      if (g) (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing || 0, tracks: {} }).swing = v;
+      if (g) editFor(g).swing = v;
       refreshExport();
     });
 
