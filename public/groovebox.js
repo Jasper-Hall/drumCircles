@@ -3,7 +3,7 @@ class Groovebox {
         this.isPlaying = false;
         this.steps = 16;
         this.currentScale = 'major';
-        this.currentStep = 0;
+        this.currentTick = 0; // sixteenths since play; each track keeps its own step clock against it
         this.swing = NEUTRAL_SWING;
         this.rows = 12; // One octave of notes
         this.lastStepTime = 0;
@@ -425,7 +425,10 @@ class Groovebox {
     }
 
     setupTransport() {
-        // Schedule the repeat function
+        // The transport ticks every sixteenth; each track runs its own step
+        // counter against it, a step being a sixteenth or — on a ring whose
+        // length is a multiple of three — a triplet eighth (engine.js stepBeats),
+        // so a 12-step ring fills a bar in 12/8.
         Tone.getTransport().scheduleRepeat((time) => {
             this.repeat(time);
         }, "16n");
@@ -454,6 +457,7 @@ class Groovebox {
                 if (Tone.getTransport().state === 'started') {
                     Tone.getTransport().stop();
                     this.isPlaying = false;
+                    this.currentTick = 0;
                     newPlayButton.textContent = 'Play';
                 } else {
                     Tone.getTransport().start();
@@ -503,40 +507,43 @@ class Groovebox {
 
     repeat(time) {
         if (!this.isPlaying) return;
-        
+
         // Prevent duplicate triggers
         if (time === this.lastStepTime) return;
         this.lastStepTime = time;
-        
-        // Get current step - use a very large number to prevent resetting too early
-        // This allows us to count through all steps of both patterns
-        const step = this.currentStep;
 
-        // Swing shifts the off-beat 16ths; the step counter's parity is the
-        // beat grid because the transport repeats every 16n from step 0.
-        time += swingOffsetSeconds(step, this.swing, Tone.Time('16n').toSeconds());
-        
-        // Trigger synths for each track if step is active
+        const tick = this.currentTick;
+        const beatSec = Tone.Time('4n').toSeconds();
+        const from = tick / 4, to = (tick + 1) / 4;   // this sixteenth, in beats
+
         Object.entries(this.synths).forEach(([name, track]) => {
-            if (track.getStepValue(step)) {
-                track.currentNoteIndex = step;
-                this.triggerSynth(name, track, time, step);
+            if (tick === 0 || !track.clock) track.clock = { step: 0, beat: 0 };
+            const pos = track.clock;
+            // every step of this track that starts inside the window, at its exact time
+            while (pos.beat < to - 1e-9) {
+                const step = pos.step;
+                const ring = track.ringAt(step);
+                const dur = stepBeats(ring.steps);
+                const stepSec = dur * beatSec;
+                let t = time + (pos.beat - from) * beatSec;
+                // MPC swing is a sixteenth-note thing: triplet rings keep straight
+                if (dur === 0.25) t += swingOffsetSeconds(ring.index, this.swing, stepSec);
+                if (track.getStepValue(step)) {
+                    track.currentNoteIndex = step;
+                    this.triggerSynth(name, track, t, step, stepSec);
+                }
+                if (track.updateVisualization) {
+                    Tone.getDraw().schedule(() => { track.lastStep = step; track.updateVisualization(step); }, t);
+                }
+                pos.step += 1;
+                pos.beat += dur;
             }
         });
 
-        // Update visualization for each track
-        Object.values(this.synths).forEach(track => {
-            if (track.updateVisualization) {
-                track.updateVisualization(step);
-            }
-        });
-
-        // Advance to next step without constraining to this.steps
-        // Each track will handle its own step counting internally
-        this.currentStep += 1;
+        this.currentTick += 1;
     }
 
-    triggerSynth(name, track, time, step = this.currentStep) {
+    triggerSynth(name, track, time, step = track.lastStep || 0, stepSec = Tone.Time('16n').toSeconds()) {
         // Humanize: small +/- timing jitter (ms -> seconds). Clamped so the
         // scheduled time is never negative regardless of jitter direction.
         const humanizeSeconds = (this.humanizeMs || 0) / 1000;
@@ -556,7 +563,7 @@ class Groovebox {
             velocity = Math.min(1, Math.max(0, base + wobble));
         }
 
-        // Gate: note duration scales off the 16n grid slot. Tone 14.8.49
+        // Gate: note duration scales off the ring's step. Tone 14.8.49
         // signature notes (verified against source):
         //  - Instrument.triggerAttackRelease(note, duration, time, velocity)
         //    covers PluckSynth, FMSynth, MembraneSynth, MetalSynth. Velocity
@@ -567,7 +574,7 @@ class Groovebox {
         //  - PolySynth.triggerAttackRelease(notes, duration, time, velocity)
         //  - NoiseSynth.triggerAttackRelease(duration, time, velocity) --
         //    note this one has NO note argument.
-        const gateSeconds = track.gate * Tone.Time('16n').toSeconds();
+        const gateSeconds = track.gate * stepSec;
 
         // Sampler loading guard: the smpl track's currently-selected one-shot
         // may not have finished decoding yet (samples load async). Skip the
@@ -1200,7 +1207,7 @@ class Groovebox {
             }
         }
         
-        track.updateVisualization(this.currentStep);
+        track.updateVisualization(track.lastStep || 0);
     }
 
     updateMixerControl(channelId, param, value) {
@@ -1401,7 +1408,7 @@ class Groovebox {
                 }
 
                 // Update visualization
-                track.updateVisualization(this.currentStep);
+                track.updateVisualization(track.lastStep || 0);
             });
         }
 
@@ -1761,7 +1768,7 @@ class Groovebox {
                 );
             }
             
-            track.updateVisualization(this.currentStep);
+            track.updateVisualization(track.lastStep || 0);
 
             // Update UI (scoped lookup: knob ids repeat across tracks)
             const knob = track.controlsContainer
@@ -1900,6 +1907,16 @@ class Track {
         this.synth = this.samplers[sampleId];
         this.synth.connect(this.filter);
         this.currentSampleId = sampleId;
+    }
+
+    // Which ring `step` (the track's raw step counter) falls in, and the step
+    // within it: outer's steps first, then inner's, per A+B cycle.
+    ringAt(step) {
+        const outer = this.outerSequencer.steps, inner = this.innerSequencer.steps;
+        const total = (outer + inner) > 0 ? (outer + inner) : 1;
+        const pos = step % total;
+        if (outer > 0 && pos < outer) return { ring: this.outerSequencer, steps: outer, index: pos };
+        return { ring: this.innerSequencer, steps: inner, index: pos - outer };
     }
 
     // Is `step` (Groovebox's raw incrementing step counter) the logical
@@ -2488,7 +2505,7 @@ class Track {
                 }
 
                 this.resyncDistributionKnob(container, type);
-                this.updateVisualization(this.groovebox.currentStep); // Update visualization after changes
+                this.updateVisualization(this.lastStep || 0); // Update visualization after changes
             }
         });
 
@@ -2535,7 +2552,7 @@ class Track {
                      }
                 }
                 this.resyncDistributionKnob(container, type);
-                this.updateVisualization(this.groovebox.currentStep);
+                this.updateVisualization(this.lastStep || 0);
             }
         });
 
@@ -2559,7 +2576,7 @@ class Track {
                 );
                 // No need to manually update UI here, createKnob's drag logic handles it
                 // and broadcasts the change. updateParams ensures the internal value is correct.
-                this.updateVisualization(this.groovebox.currentStep);
+                this.updateVisualization(this.lastStep || 0);
             }
         });
 
@@ -2583,7 +2600,7 @@ class Track {
                     sequencer.probability,
                     value // Pass the new distribution value
                 );
-                this.updateVisualization(this.groovebox.currentStep); // Update viz
+                this.updateVisualization(this.lastStep || 0); // Update viz
             }
         });
 
@@ -2603,7 +2620,7 @@ class Track {
                     value, // Pass the new probability value
                     sequencer.distribution // Pass existing distribution
                 );
-                 this.updateVisualization(this.groovebox.currentStep); // Update viz
+                 this.updateVisualization(this.lastStep || 0); // Update viz
             }
         });
 

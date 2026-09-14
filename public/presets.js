@@ -1440,7 +1440,7 @@ window.EXAMPLE_PRESETS = [
       "perc": {
         "steps": 12,
         "pulses": 7,
-        "rotation": 0,
+        "rotation": 11,
         "distribution": 50,
         "probability": 100,
         "b": null
@@ -1448,7 +1448,7 @@ window.EXAMPLE_PRESETS = [
     },
     "synth": {
       "perc": {
-        "sample": 8
+        "sample": 9
       }
     }
   },
@@ -1463,7 +1463,7 @@ window.EXAMPLE_PRESETS = [
       "perc": {
         "steps": 12,
         "pulses": 5,
-        "rotation": 0,
+        "rotation": 8,
         "distribution": 50,
         "probability": 100,
         "b": null
@@ -1471,7 +1471,7 @@ window.EXAMPLE_PRESETS = [
     },
     "synth": {
       "perc": {
-        "sample": 9
+        "sample": 10
       }
     }
   },
@@ -1494,7 +1494,7 @@ window.EXAMPLE_PRESETS = [
     },
     "synth": {
       "perc": {
-        "sample": 10
+        "sample": 11
       }
     }
   },
@@ -1509,7 +1509,7 @@ window.EXAMPLE_PRESETS = [
       "perc": {
         "steps": 8,
         "pulses": 5,
-        "rotation": 0,
+        "rotation": 2,
         "distribution": 50,
         "probability": 100,
         "b": null
@@ -1517,7 +1517,7 @@ window.EXAMPLE_PRESETS = [
     },
     "synth": {
       "perc": {
-        "sample": 10
+        "sample": 11
       }
     }
   },

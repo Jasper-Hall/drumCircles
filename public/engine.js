@@ -239,6 +239,14 @@ class EuclideanSequencer {
 const NEUTRAL_SWING = 50;
 const SWING_MIN = 25;
 const SWING_MAX = 75;
+/* A ring's step: a sixteenth, unless the ring's length is a multiple of three,
+ * in which case it is a triplet eighth (a beat / 3). So 16 steps span a bar in
+ * sixteenths, 8 a half bar, 4 a beat, and 12 span a bar in 12/8 — E(7,12) is
+ * the Ewe bell and E(5,12) the Venda clap, at the tempo they are named at.
+ * Shared by the app's clock, the tuning desk and the strips both draw. */
+function stepBeats(steps) {
+    return steps > 0 && steps % 3 === 0 ? 1 / 3 : 1 / 4;
+}
 function swingOffsetSeconds(step, swingPct, stepSeconds) {
     if (step % 2 === 0) return 0;
     const s = Math.min(SWING_MAX, Math.max(SWING_MIN, Number(swingPct) || NEUTRAL_SWING));

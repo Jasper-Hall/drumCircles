@@ -8,6 +8,11 @@ const j = JSON.parse(fs.readFileSync(src, 'utf8'));
 const out = path.join(__dirname, '..', 'public', 'presets.js');
 const existing = fs.readFileSync(out, 'utf8');
 const header = existing.slice(0, existing.indexOf('window.GENRE_PRESETS'));
+// An export made before the examples existed keeps the examples already on file.
+const keptExamples = (() => {
+  const m = existing.match(/window\.EXAMPLE_PRESETS = ([\s\S]*?);\n\n/);
+  try { return m ? JSON.parse(m[1]) : []; } catch { return []; }
+})();
 const date = path.basename(src).replace(/^tuned-|\.json$/g, '');
 const body = [
   header.replace(/dialled by ear on\n\/\/ the tuning desk, [\d-]+/, 'dialled by ear on\n// the tuning desk, ' + date),
@@ -15,7 +20,7 @@ const body = [
   '',
   '// RHYTHM 001\'s example rhythms, tuned on the desk like a genre: one track each,',
   '// the rest silent. `kind: \'example\'` keeps them out of the app\'s genre list.',
-  'window.EXAMPLE_PRESETS = ' + JSON.stringify(j.examples || [], null, 2) + ';',
+  'window.EXAMPLE_PRESETS = ' + JSON.stringify(j.examples || keptExamples, null, 2) + ';',
   '',
   '// Synth params shared by every genre; a genre\'s own `synth` block overrides these.',
   'window.SYNTH_DEFAULTS = ' + JSON.stringify(j.synthDefaults || {}, null, 2) + ';',

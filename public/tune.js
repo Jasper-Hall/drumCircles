@@ -29,7 +29,7 @@
     noteSeeds: {},       // trackId -> [indices]
     swing: NEUTRAL_SWING,
     playing: false,
-    tick: 0              // global 16th counter; each track folds it into its own A+B cycle
+    tick: 0              // sixteenths since play; each track runs its own step counter against it
   };
 
   // Debug handle for the desk (and for in-browser verification).
@@ -258,24 +258,40 @@
     if (out) out.textContent = formatSwing(state.swing);
   }
 
-  // Which ring a track is on at this tick, and the step within it.
-  function ringAt(t, tick) {
+  // Which ring a track is on at this step of its A+B cycle, and the step within it.
+  function ringAt(t, step) {
     const nA = t.seq.steps;
     const nB = t.useB ? t.seqB.steps : 0;
-    const p = tick % (nA + nB);
+    const p = step % (nA + nB);
     return p < nA ? { seq: t.seq, step: p } : { seq: t.seqB, step: p - nA };
   }
 
+  // The transport ticks every sixteenth; each track keeps its own step counter
+  // and its own position in beats, and every step that falls inside the tick's
+  // window is scheduled at its exact time. A step is a sixteenth or, on a ring
+  // whose length is a multiple of three, a triplet eighth (engine.js stepBeats),
+  // so 12 steps fill a bar in 12/8. Swing shifts the off-beat sixteenths only.
   function startClock() {
     Tone.getTransport().scheduleRepeat((time) => {
       const tick = state.tick;
-      const when = time + swingOffsetSeconds(tick, state.swing, Tone.Time('16n').toSeconds());
+      const beatSec = Tone.Time('4n').toSeconds();
+      const from = tick / 4, to = (tick + 1) / 4;
       for (const id of Object.keys(state.tracks)) {
         const t = state.tracks[id];
-        const r = ringAt(t, tick);
-        if (r.seq.pulses > 0 && r.seq.getStep(r.step)) trigger(t, when);
+        if (tick === 0 || t._pos == null) { t._pos = { step: 0, beat: 0 }; }
+        const pos = t._pos;
+        while (pos.beat < to - 1e-9) {
+          const r = ringAt(t, pos.step);
+          const dur = stepBeats(r.seq.steps);
+          let when = time + (pos.beat - from) * beatSec;
+          if (dur === 0.25) when += swingOffsetSeconds(r.step, state.swing, dur * beatSec);
+          if (r.seq.pulses > 0 && r.seq.getStep(r.step)) trigger(t, when);
+          const step = pos.step;
+          Tone.getDraw().schedule(() => paintPlayhead(id, step), when);
+          pos.step += 1;
+          pos.beat += dur;
+        }
       }
-      Tone.getDraw().schedule(() => paintPlayhead(tick), when);
       state.tick += 1;
     }, '16n');
   }
@@ -284,15 +300,23 @@
   // Render a track's A(+B) cycle exactly as playback reads it: rotation applied,
   // a cycle shorter than the bar loops, a longer one is shown in full so the
   // strip and the target line up on the first 16.
+  // The strip as playback reads it: the A(+B) cycle, rotation applied, looped
+  // until it fills whole bars (a 4-step kick shows four times, a 12/8 ring once,
+  // an 8+16 cycle in full). Each cell carries the beat it starts on, so bar
+  // lines land where the bars do even when triplet and sixteenth rings mix.
   function renderBar(t) {
     const cycle = t.seq.steps + (t.useB ? t.seqB.steps : 0);
-    const out = [];
-    for (let tick = 0; tick < Math.max(BAR_STEPS, cycle); tick++) {
-      const r = ringAt(t, tick);
+    const bits = [], beats = [];
+    let beat = 0;
+    for (let step = 0; cycle > 0 && (step < cycle || beat < 4 - 1e-9); step++) {
+      const r = ringAt(t, step);
       const rotated = ((r.step - r.seq.rotation) % r.seq.steps + r.seq.steps) % r.seq.steps;
-      out.push(r.seq.pattern && r.seq.pattern[rotated] ? 1 : 0);
+      bits.push(r.seq.pattern && r.seq.pattern[rotated] ? 1 : 0);
+      beats.push(beat);
+      beat += stepBeats(r.seq.steps);
     }
-    return out;
+    bits.beats = beats;
+    return bits;
   }
 
   const targetBits = (target) =>
@@ -665,29 +689,29 @@
   function paintStrip(id, bits, compare) {
     const row = document.getElementById(id);
     if (!row) return;
-    // A ring-B cycle longer than a bar needs more cells; a bar boundary is drawn
-    // every 16 so the eye can still find "one".
+    // A cycle longer than a bar needs more cells; a bar line is drawn at every
+    // fourth beat so the eye can still find "one".
     while (row.children.length < bits.length) {
       const c = el('div', 'pattern-cell');
       c.dataset.i = row.children.length;
       row.appendChild(c);
     }
-    while (row.children.length > Math.max(BAR_STEPS, bits.length)) row.removeChild(row.lastChild);
+    while (row.children.length > bits.length) row.removeChild(row.lastChild);
     row.style.gridTemplateColumns = 'repeat(' + row.children.length + ', 1fr)';
     [...row.children].forEach((cell, i) => {
       cell.classList.toggle('hit', !!bits[i]);
       cell.classList.toggle('mismatch', !!compare && bits[i] !== compare[i]);
-      cell.classList.toggle('bar', i > 0 && i % BAR_STEPS === 0);
+      const beat = bits.beats ? bits.beats[i] : i / 4;
+      cell.classList.toggle('bar', i > 0 && Math.abs(beat / 4 - Math.round(beat / 4)) < 1e-6);
     });
   }
 
-  function paintPlayhead(tick) {
-    document.querySelectorAll('.pattern-row.live .pattern-cell.playing')
-      .forEach(c => c.classList.remove('playing'));
-    document.querySelectorAll('.pattern-row.live').forEach(row => {
-      const c = row.children[tick % row.children.length];
-      if (c) c.classList.add('playing');
-    });
+  function paintPlayhead(trackId, cell) {
+    const row = document.getElementById('strip-live-' + trackId);
+    if (!row) return;
+    for (const c of row.querySelectorAll('.playing')) c.classList.remove('playing');
+    const c = row.children[cell % row.children.length];
+    if (c) c.classList.add('playing');
   }
 
   // ---- genre selection ---------------------------------------------------

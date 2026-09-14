@@ -105,6 +105,7 @@ window.SYNTH_DEFS = [
       { id: 'perc_08', label: 'granvocal 17',  file: 'public/samples/percs/perc_08.m4a' },
       // RHYTHM 001's named rhythms: an agogo for the Ewe bell, a clap for Venda, a clave for Cuba
       { id: 'agogo', label: 'agogo (Ewe)',     file: 'public/samples/percs/rhythm001_agogo.wav' },
+      { id: 'bell',  label: 'bell (Ewe)',      file: 'public/samples/percs/rhythm001_bell.wav' },
       { id: 'clap',  label: 'clap (Venda)',    file: 'public/samples/percs/rhythm001_clap.wav' },
       { id: 'clave', label: 'clave (Cuba)',    file: 'public/samples/percs/rhythm001_clave.wav' }
     ],

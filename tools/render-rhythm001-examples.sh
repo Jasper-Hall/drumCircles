@@ -5,8 +5,8 @@
 set -e
 OUT=${1:-out/ex}
 R="node tools/render-preset.mjs --norm 0.5"
-# a 12-step ring cycles every 12 sixteenths, so three bars hold four whole cycles
-for id in ex-techno:1 ex-footwork:1 ex-ewe:3 ex-venda:3 ex-tresillo:1 ex-cinquillo:1; do
+# a 12-step ring is 12/8: one bar (engine.js stepBeats)
+for id in ex-techno:1 ex-footwork:1 ex-ewe:1 ex-venda:1 ex-tresillo:1 ex-cinquillo:1; do
   $R --genre ${id%:*} --bars ${id#*:} --lead ${id#*:} --out $OUT/${id%:*}.wav   # lead = bars, so the cycle starts at step 0
 done
 # the knob turn and the sweep, in the beep and in the hat: the example's voice, an explicit pattern
