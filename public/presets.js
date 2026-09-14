@@ -1,7 +1,7 @@
 // Genre presets for drum-circles.
 //
 // PARAMS (steps/pulses/rotation/distribution) are the source of truth: dialled by ear on
-// the tuning desk, 2026-09-13. `plays` is what they produce over one bar.
+// the tuning desk, 2026-09-14. `plays` is what they produce over one bar.
 //
 // TARGET is the researched canonical pattern (tools/research-genres.md, 2026-09-12), with
 // targetConfidence carried from the research: 'high' has a notated source, 'low' means no
@@ -15,6 +15,7 @@
 // 0-100 for both rings, and `b` = a second ring played after A (its own four
 // params) or null. `swing` is bipolar MPC-style: 50 straight, >50 off-beat 16ths
 // late (67 = triplet), <50 pulled early (cumbia) -- see engine.js swingOffsetSeconds.
+
 
 
 
@@ -122,15 +123,15 @@ window.GENRE_PRESETS = [
         "envelope.attack": 0.041
       },
       "fm": {
-        "harmonicity": 8,
-        "modulationIndex": 4.4,
+        "harmonicity": 2.1,
+        "modulationIndex": 38.9,
         "modulationEnvelope.attack": 0.001,
         "modulationEnvelope.decay": 0.007,
         "modulationEnvelope.release": 0.001,
         "envelope.decay": 0.167,
         "envelope.release": 0.034,
         "envelope.sustain": 0.15,
-        "envelope.attack": 0.001
+        "envelope.attack": 0.013
       },
       "poly": {
         "envelope.release": 0.113
@@ -207,11 +208,10 @@ window.GENRE_PRESETS = [
         "b": null
       },
       "fm": {
-        "steps": 16,
+        "steps": 8,
         "pulses": 4,
         "rotation": 0,
-        "distribution": 50,
-        "plays": "x...x...x...x...",
+        "distribution": 24,
         "probability": 100,
         "b": null
       },
@@ -243,6 +243,14 @@ window.GENRE_PRESETS = [
       },
       "snare": {
         "release": 0.03
+      },
+      "fm": {
+        "modulationIndex": 0.1,
+        "modulationEnvelope.release": 0.001,
+        "envelope.decay": 0.349,
+        "envelope.release": 0.001,
+        "envelope.sustain": 0.07,
+        "envelope.attack": 0.001
       }
     }
   },
@@ -349,7 +357,7 @@ window.GENRE_PRESETS = [
         "bodyTone": 0.029,
         "sustain": 200,
         "release": 234,
-        "punchDepth": 25.7,
+        "punchDepth": 15.3,
         "freq": 60.3
       },
       "snare": {
@@ -370,55 +378,42 @@ window.GENRE_PRESETS = [
   {
     "id": "dembow",
     "label": "Dembow Dominicano",
-    "bpm": 115,
+    "bpm": 140,
     "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
         "steps": 8,
-        "pulses": 1,
+        "pulses": 2,
         "rotation": 0,
         "distribution": 50,
-        "target": "x...x...x...x...",
-        "plays": "x.......x.......",
-        "targetParams": {
-          "steps": 4,
-          "pulses": 1,
-          "rotation": 0,
-          "distribution": 50
-        },
         "probability": 100,
-        "b": null
+        "b": null,
+        "target": "x...x...x...x..."
       },
       "snare": {
         "steps": 8,
-        "pulses": 3,
-        "rotation": 6,
+        "pulses": 2,
+        "rotation": 3,
         "distribution": 37,
-        "target": "...x..x....x..x.",
-        "plays": "x..x..x.x..x..x.",
-        "targetParams": {
-          "steps": 8,
-          "pulses": 2,
-          "rotation": 2,
-          "distribution": 55
-        },
         "probability": 100,
-        "b": null
+        "b": null,
+        "target": "...x..x....x..x."
       },
       "hat": {
-        "steps": 2,
-        "pulses": 1,
+        "steps": 9,
+        "pulses": 0,
         "rotation": 0,
         "distribution": 50,
-        "target": "xxxxxxxxxxxxxxxx",
-        "plays": "x.x.x.x.x.x.x.x.",
-        "targetParams": {
-          "steps": 1,
-          "pulses": 1,
-          "rotation": 0,
-          "distribution": 50
-        },
+        "probability": 100,
+        "b": null,
+        "target": "xxxxxxxxxxxxxxxx"
+      },
+      "perc": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 6,
+        "distribution": 50,
         "probability": 100,
         "b": null
       }
@@ -434,6 +429,12 @@ window.GENRE_PRESETS = [
         "release": 248,
         "bodyTone": 0.082,
         "timbreX": 0.735
+      },
+      "snare": {
+        "pitch": 3
+      },
+      "perc": {
+        "sample": 3
       }
     }
   },
@@ -441,30 +442,31 @@ window.GENRE_PRESETS = [
     "id": "bailefunk",
     "label": "Baile Funk",
     "bpm": 130,
-    "swing": 50,
+    "swing": 44,
     "verified": false,
     "tracks": {
       "kick": {
         "steps": 16,
         "pulses": 2,
-        "rotation": 0,
-        "distribution": 50,
-        "target": "x.....x...x.....",
-        "plays": "x.......x.......",
-        "targetParams": null,
+        "rotation": 15,
+        "distribution": 3,
         "probability": 100,
-        "b": null
+        "b": null,
+        "target": "x.....x...x....."
       },
       "snare": {
         "steps": 8,
         "pulses": 2,
         "rotation": 3,
         "distribution": 41,
-        "target": "..x...x.....x.x.",
-        "plays": "...x..x....x..x.",
-        "targetParams": null,
         "probability": 100,
-        "b": null
+        "b": {
+          "steps": 8,
+          "pulses": 2,
+          "rotation": 7,
+          "distribution": 71
+        },
+        "target": "..x...x.....x.x."
       },
       "hat": {
         "steps": 2,
@@ -481,6 +483,27 @@ window.GENRE_PRESETS = [
         },
         "probability": 100,
         "b": null
+      },
+      "perc": {
+        "steps": 8,
+        "pulses": 2,
+        "rotation": 2,
+        "distribution": 55,
+        "probability": 100,
+        "b": {
+          "steps": 8,
+          "pulses": 2,
+          "rotation": 7,
+          "distribution": 71
+        }
+      },
+      "fm": {
+        "steps": 16,
+        "pulses": 3,
+        "rotation": 0,
+        "distribution": 40,
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": "kick+snare",
@@ -488,7 +511,32 @@ window.GENRE_PRESETS = [
     "researchBpm": 130,
     "targetConfidence": "high",
     "targetSource": "tools/research-genres.md",
-    "synth": {}
+    "synth": {
+      "kick": {
+        "punchDepth": 84,
+        "release": 204,
+        "bodyTone": 0.797,
+        "punchLength": 44,
+        "timbreX": 0.051,
+        "contour": 0.502,
+        "sustain": 76,
+        "level": 0.464,
+        "timbreY": 0.921,
+        "freq": 60.5
+      },
+      "perc": {
+        "sample": 1
+      },
+      "fm": {
+        "modulationIndex": 0.1,
+        "harmonicity": 2.7,
+        "modulationEnvelope.release": 0.165
+      },
+      "snare": {
+        "sample": 3,
+        "pitch": 4
+      }
+    }
   },
   {
     "id": "kuduro",
@@ -577,20 +625,18 @@ window.GENRE_PRESETS = [
         "b": null
       },
       "snare": {
-        "steps": 16,
-        "pulses": 5,
+        "steps": 8,
+        "pulses": 2,
         "rotation": 3,
-        "distribution": 43,
-        "target": "....x.......x...",
-        "plays": "...x..x.x..x..x.",
-        "targetParams": {
+        "distribution": 41,
+        "probability": 100,
+        "b": {
           "steps": 8,
-          "pulses": 1,
-          "rotation": 4,
+          "pulses": 2,
+          "rotation": 2,
           "distribution": 50
         },
-        "probability": 100,
-        "b": null
+        "target": "....x.......x..."
       },
       "hat": {
         "steps": 16,
@@ -610,19 +656,17 @@ window.GENRE_PRESETS = [
       },
       "pluck": {
         "steps": 16,
-        "pulses": 12,
+        "pulses": 0,
         "rotation": 0,
         "distribution": 50,
-        "plays": "xxx.xxx.xxx.xxx.",
         "probability": 100,
         "b": null
       },
       "fm": {
         "steps": 16,
-        "pulses": 4,
+        "pulses": 0,
         "rotation": 2,
         "distribution": 45,
-        "plays": "..x...x..x...x..",
         "probability": 100,
         "b": null
       },
@@ -636,12 +680,17 @@ window.GENRE_PRESETS = [
         "b": null
       },
       "perc": {
-        "steps": 16,
-        "pulses": 5,
-        "rotation": 4,
+        "steps": 8,
+        "pulses": 3,
+        "rotation": 3,
         "distribution": 34,
         "probability": 100,
-        "b": null
+        "b": {
+          "steps": 16,
+          "pulses": 0,
+          "rotation": 0,
+          "distribution": 50
+        }
       },
       "bass": {
         "steps": 16,
@@ -683,8 +732,8 @@ window.GENRE_PRESETS = [
   {
     "id": "cumbia",
     "label": "Cumbia",
-    "bpm": 95,
-    "swing": 46,
+    "bpm": 93,
+    "swing": 44,
     "verified": true,
     "tracks": {
       "kick": {
@@ -762,6 +811,14 @@ window.GENRE_PRESETS = [
         "distribution": 65,
         "probability": 100,
         "b": null
+      },
+      "perc": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -771,13 +828,14 @@ window.GENRE_PRESETS = [
     "targetSource": "tools/research-genres.md",
     "synth": {
       "kick": {
-        "sustain": 72,
-        "release": 216,
-        "timbreX": 0.676,
-        "bodyTone": 0.044
+        "sustain": 102,
+        "release": 118,
+        "timbreX": 0.04,
+        "bodyTone": 0.044,
+        "punchDepth": 59.9
       },
       "bass": {
-        "filterEnvelope.baseFrequency": 270,
+        "filterEnvelope.baseFrequency": 161,
         "filterEnvelope.octaves": 0,
         "filterEnvelope.decay": 0.33,
         "filter.Q": 0.4,
@@ -786,6 +844,18 @@ window.GENRE_PRESETS = [
       },
       "snare": {
         "sample": 4
+      },
+      "hat": {
+        "envelope.attack": 0.035,
+        "resonance": 6400,
+        "harmonicity": 1.3,
+        "modulationIndex": 8,
+        "frequency": 246
+      },
+      "perc": {
+        "sample": 1,
+        "pitch": 7,
+        "release": 0.12
       }
     },
     "swingNote": "research: no micro-timing study of cumbia exists; 44-48 (off-beats pulled early) is an inference from the Latin/samba anticipation literature, low confidence -- dial by ear (tools/research-swing.md)"
@@ -857,7 +927,7 @@ window.GENRE_PRESETS = [
     "id": "ukfunky",
     "label": "UK Funky",
     "bpm": 130,
-    "swing": 58,
+    "swing": 57,
     "verified": true,
     "tracks": {
       "kick": {
@@ -881,32 +951,29 @@ window.GENRE_PRESETS = [
         "pulses": 3,
         "rotation": 3,
         "distribution": 6,
-        "target": ".......x.......x",
         "probability": 100,
-        "b": null
+        "b": {
+          "steps": 16,
+          "pulses": 2,
+          "rotation": 0,
+          "distribution": 50
+        },
+        "target": ".......x.......x"
       },
       "hat": {
         "steps": 4,
-        "pulses": 1,
-        "rotation": 2,
+        "pulses": 0,
+        "rotation": 0,
         "distribution": 50,
-        "target": "..x...x...x...x.",
-        "plays": "..x...x...x...x.",
-        "targetParams": {
-          "steps": 4,
-          "pulses": 1,
-          "rotation": 2,
-          "distribution": 50
-        },
         "probability": 100,
-        "b": null
+        "b": null,
+        "target": "..x...x...x...x."
       },
       "pluck": {
         "steps": 16,
-        "pulses": 7,
+        "pulses": 5,
         "rotation": 0,
-        "distribution": 50,
-        "plays": "x.x.x.x..x.x.x..",
+        "distribution": 37,
         "probability": 100,
         "b": null
       },
@@ -920,11 +987,24 @@ window.GENRE_PRESETS = [
         "b": null
       },
       "perc": {
-        "steps": 16,
+        "steps": 8,
         "pulses": 2,
         "rotation": 3,
-        "distribution": 17,
+        "distribution": 41,
         "probability": 100,
+        "b": {
+          "steps": 8,
+          "pulses": 2,
+          "rotation": 1,
+          "distribution": 50
+        }
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 3,
+        "distribution": 47,
+        "probability": 76,
         "b": null
       }
     },
@@ -937,35 +1017,53 @@ window.GENRE_PRESETS = [
       "kick": {
         "punchLength": 124,
         "contour": 0.654,
-        "bodyTone": 0.071,
-        "timbreX": 0.768,
+        "bodyTone": 0.112,
+        "timbreX": 0,
         "release": 245,
         "sustain": 122
       },
       "snare": {
-        "pitch": 8,
+        "pitch": 2,
         "sample": 4
       },
       "perc": {
-        "sample": 3
+        "sample": 3,
+        "pitch": -6
+      },
+      "hat": {
+        "envelope.attack": 0.016,
+        "octaves": 2,
+        "resonance": 5300,
+        "modulationIndex": 89,
+        "harmonicity": 8.3
+      },
+      "fm": {
+        "modulationIndex": 5.1,
+        "harmonicity": 2.3,
+        "envelope.attack": 0.094
       }
     }
   },
   {
     "id": "ukdrill",
     "label": "UK Drill",
-    "bpm": 142,
+    "bpm": 150,
     "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
         "steps": 16,
-        "pulses": 2,
-        "rotation": 12,
+        "pulses": 1,
+        "rotation": 0,
         "distribution": 24,
-        "target": "x.............x.",
         "probability": 100,
-        "b": null
+        "b": {
+          "steps": 16,
+          "pulses": 1,
+          "rotation": 12,
+          "distribution": 50
+        },
+        "target": "x.............x."
       },
       "snare": {
         "steps": 16,
@@ -981,9 +1079,14 @@ window.GENRE_PRESETS = [
         "pulses": 3,
         "rotation": 0,
         "distribution": 50,
-        "target": "x..x..x.x..x..x.",
-        "probability": 100,
-        "b": null
+        "probability": 96,
+        "b": {
+          "steps": 8,
+          "pulses": 4,
+          "rotation": 2,
+          "distribution": 59
+        },
+        "target": "x..x..x.x..x..x."
       },
       "pluck": {
         "steps": 16,
@@ -995,10 +1098,10 @@ window.GENRE_PRESETS = [
       },
       "fm": {
         "steps": 16,
-        "pulses": 0,
+        "pulses": 3,
         "rotation": 0,
-        "distribution": 50,
-        "probability": 100,
+        "distribution": 31,
+        "probability": 70,
         "b": null
       },
       "perc": {
@@ -1011,10 +1114,10 @@ window.GENRE_PRESETS = [
       },
       "poly": {
         "steps": 16,
-        "pulses": 3,
+        "pulses": 6,
         "rotation": 0,
         "distribution": 37,
-        "probability": 100,
+        "probability": 89,
         "b": null
       }
     },
@@ -1038,6 +1141,19 @@ window.GENRE_PRESETS = [
       },
       "perc": {
         "sample": 0
+      },
+      "poly": {
+        "oscillator.type": "fattriangle"
+      },
+      "fm": {
+        "modulationIndex": 0.8
+      },
+      "hat": {
+        "frequency": 57,
+        "harmonicity": 7.5,
+        "resonance": 900,
+        "octaves": 0.8,
+        "envelope.attack": 0.007
       }
     }
   },
@@ -1045,19 +1161,24 @@ window.GENRE_PRESETS = [
     "id": "ukgarage",
     "label": "UK Garage",
     "bpm": 135,
-    "swing": 59,
+    "swing": 58,
     "verified": true,
     "unreachable": null,
     "note": null,
     "tracks": {
       "kick": {
-        "steps": 16,
-        "pulses": 2,
-        "rotation": 5,
-        "distribution": 68,
-        "target": "x.........x.....",
-        "probability": 100,
-        "b": null
+        "steps": 8,
+        "pulses": 1,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 63,
+        "b": {
+          "steps": 8,
+          "pulses": 3,
+          "rotation": 1,
+          "distribution": 31
+        },
+        "target": "x.........x....."
       },
       "snare": {
         "steps": 16,
@@ -1119,10 +1240,10 @@ window.GENRE_PRESETS = [
         "contour": 0.043,
         "sustain": 115,
         "release": 194,
-        "punchDepth": 59.3,
-        "punchLength": 201,
+        "punchDepth": 86.2,
+        "punchLength": 185,
         "bodyTone": 0.114,
-        "timbreX": 0.266
+        "timbreX": 0.082
       },
       "bass": {
         "envelope.decay": 0.2
@@ -1134,11 +1255,16 @@ window.GENRE_PRESETS = [
       },
       "snare": {
         "release": 0.02,
-        "sample": 0
+        "sample": 0,
+        "pitch": 5
       },
       "poly": {
         "oscillator.type": "fatsquare",
         "envelope.release": 0.034
+      },
+      "hat": {
+        "envelope.attack": 0.013,
+        "resonance": 1500
       }
     }
   },
@@ -1299,6 +1425,13 @@ window.SYNTH_DEFAULTS = {
 
 // Scale-degree indices seeded into each melodic track's note grid.
 window.NOTE_SEEDS = {
+  "kick": [
+    8
+  ],
+  "bass": [
+    10,
+    13
+  ],
   "pluck": [
     0,
     1,
@@ -1306,20 +1439,13 @@ window.NOTE_SEEDS = {
   ],
   "fm": [
     11,
-    12
+    12,
+    21
   ],
   "poly": [
     0,
     1,
     3,
-    14
-  ],
-  "kick": [
-    10
-  ],
-  "bass": [
-    10,
-    13,
     14
   ]
 };

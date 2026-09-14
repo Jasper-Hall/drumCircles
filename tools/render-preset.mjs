@@ -6,6 +6,8 @@
 //   node tools/render-preset.mjs --genre house --bars 2 --out out/house.wav
 //   node tools/render-preset.mjs --genre house --tracks kick,snare,hat --out out/house-drums.wav
 //   node tools/render-preset.mjs --bpm 120 --track hat --seq 16,7,0,50 --out out/e7-16.wav
+//   node tools/render-preset.mjs --bpm 120 --track fm --seq 16,7,0,50 --notes 14 \
+//        --synth '{"modulationIndex":0.1,"envelope.attack":0.001}' --out out/beep.wav
 //   node tools/render-preset.mjs --all --bars 2 --out out/presets
 //
 // Needs the desk served locally (python3 -m http.server 4173 in the repo root).
@@ -53,6 +55,10 @@ async function renderOne(page, job) {
       set('num-' + job.track + '-a-rotation', rot); set('num-' + job.track + '-a-distribution', dist);
     }
     if (job.tracks) for (const id of Object.keys(T.tracks)) if (!job.tracks.includes(id)) set('num-' + id + '-a-pulses', 0);
+    // engine overrides on the explicit track (ids as the desk names its synth controls)
+    if (job.synth) for (const [p, v] of Object.entries(job.synth)) set('syn-' + job.track + '-' + p.replace(/\./g, '_'), v);
+    // a fixed note for a melodic track, so a beep stays one pitch (grid index: 7 per octave from the root)
+    if (job.notes) T.tracks[job.track].notes = new Set(job.notes);
     for (const id of Object.keys(T.tracks)) set('rng-' + id + '-prob', 100);   // determinism
 
     // Tap the master: Tone's Destination output is a wrapped GainNode whose native
@@ -145,6 +151,8 @@ if (args.all) {
     genre: args.genre, bpm: args.bpm ? Number(args.bpm) : null, swing: args.swing != null ? Number(args.swing) : null,
     track: args.track || 'hat', seq: args.seq ? args.seq.split(',').map(Number) : null,
     tracks: args.tracks ? args.tracks.split(',') : null,
+    synth: args.synth ? JSON.parse(args.synth) : null,
+    notes: args.notes ? String(args.notes).split(',').map(Number) : null,
     out: args.out || 'out/render.wav'
   });
 }
@@ -152,8 +160,10 @@ const manifest = [];
 for (const job of jobs) {
   const r = await renderOne(page, { ...job, bars, lead, tail });
   fs.mkdirSync(path.dirname(job.out), { recursive: true });
-  fs.writeFileSync(job.out, wav([r.L, r.R], r.sr));
   let peak = 0; for (const v of r.L) if (Math.abs(v) > peak) peak = Math.abs(v);
+  // --norm 0.5: scale the take so its peak lands at 0.5 (quiet engines such as a bare FM sine)
+  if (args.norm && peak > 0) { const g = Number(args.norm) / peak; for (let i = 0; i < r.L.length; i++) { r.L[i] *= g; r.R[i] *= g; } peak = Number(args.norm); }
+  fs.writeFileSync(job.out, wav([r.L, r.R], r.sr));
   const rec = { out: job.out, genre: job.genre || null, seq: job.seq || null, bpm: r.bpm, bars: r.bars, barSec: r.barSec, loopSamples: r.loopSamples, sampleRate: r.sr, peak: Number(peak.toFixed(3)), firstHitMs: r.firstHitMs, hits: r.hitCount };
   manifest.push(rec);
   console.log(JSON.stringify(rec));
