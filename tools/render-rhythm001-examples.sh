@@ -20,3 +20,8 @@ for v in fm hat; do
   ffmpeg -y -loglevel error $(for k in 1 2 3 4 5 7; do printf -- "-t 1 -i $OUT/ex-e$k-16-$v.wav "; done) \
     -filter_complex "[0][1][2][3][4][5]concat=n=6:v=0:a=1" $OUT/ex-knobturn-$v.wav
 done
+# the distribution sweep on E(5,16): EUC, two detents toward the front, two toward the back
+for d in 50 43 34 57 66; do
+  node tools/render-preset.mjs --bpm 120 --track fm  --notes 14 --synth "$BEEP" --norm 0.5 --seq 16,5,0,$d --bars 1 --out $OUT/ex-e5-16-d$d-fm.wav
+  node tools/render-preset.mjs --bpm 120 --track hat --norm 0.5 --seq 16,5,0,$d --bars 1 --out $OUT/ex-e5-16-d$d-hat.wav
+done
