@@ -1,7 +1,7 @@
 // Genre presets for drum-circles.
 //
 // PARAMS (steps/pulses/rotation/distribution) are the source of truth: dialled by ear on
-// the tuning desk, 2026-09-14. `plays` is what they produce over one bar.
+// the tuning desk, 2026-09-14bb. `plays` is what they produce over one bar.
 //
 // TARGET is the researched canonical pattern (tools/research-genres.md, 2026-09-12), with
 // targetConfidence carried from the research: 'high' has a notated source, 'low' means no
@@ -15,6 +15,8 @@
 // 0-100 for both rings, and `b` = a second ring played after A (its own four
 // params) or null. `swing` is bipolar MPC-style: 50 straight, >50 off-beat 16ths
 // late (67 = triplet), <50 pulled early (cumbia) -- see engine.js swingOffsetSeconds.
+
+
 
 
 
@@ -1386,18 +1388,16 @@ window.GENRE_PRESETS = [
   }
 ];
 
-// Synth params shared by every genre; a genre's own `synth` block overrides these.
 // RHYTHM 001's example rhythms, tuned on the desk like a genre: one track each,
 // the rest silent. `kind: 'example'` keeps them out of the app's genre list.
-// `notes` pins a melodic track to one grid index (the beep stays one pitch).
 window.EXAMPLE_PRESETS = [
   {
     "id": "ex-techno",
-    "label": "ex \u00b7 techno",
+    "label": "ex · techno",
     "kind": "example",
     "bpm": 120,
     "swing": 50,
-    "note": "RHYTHM 001 \u00b7 E(4,16) on the kick",
+    "note": "RHYTHM 001 · E(4,16) on the kick",
     "tracks": {
       "kick": {
         "steps": 16,
@@ -1408,15 +1408,25 @@ window.EXAMPLE_PRESETS = [
         "b": null
       }
     },
-    "synth": {}
+    "synth": {
+      "kick": {
+        "punchDepth": 100,
+        "punchLength": 149,
+        "timbreX": 0.873,
+        "timbreY": 0.523,
+        "bodyTone": 0.358,
+        "contour": 0.782,
+        "sustain": 118
+      }
+    }
   },
   {
     "id": "ex-footwork",
-    "label": "ex \u00b7 footwork",
+    "label": "ex · footwork",
     "kind": "example",
     "bpm": 160,
     "swing": 50,
-    "note": "RHYTHM 001 \u00b7 E(6,16) rot 6 on the kick",
+    "note": "RHYTHM 001 · E(6,16) rot 6 on the kick",
     "tracks": {
       "kick": {
         "steps": 16,
@@ -1427,15 +1437,22 @@ window.EXAMPLE_PRESETS = [
         "b": null
       }
     },
-    "synth": {}
+    "synth": {
+      "kick": {
+        "punchDepth": 87.3,
+        "punchLength": 170,
+        "bodyTone": 0.237,
+        "contour": 0.821
+      }
+    }
   },
   {
     "id": "ex-ewe",
-    "label": "ex \u00b7 Ewe bell",
+    "label": "ex · Ewe bell",
     "kind": "example",
     "bpm": 120,
     "swing": 50,
-    "note": "RHYTHM 001 \u00b7 E(7,12), agogo",
+    "note": "RHYTHM 001 · E(7,12), gankogui (low bell on one), kick under",
     "tracks": {
       "perc": {
         "steps": 12,
@@ -1444,21 +1461,44 @@ window.EXAMPLE_PRESETS = [
         "distribution": 50,
         "probability": 100,
         "b": null
+      },
+      "hat": {
+        "steps": 16,
+        "pulses": 0,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      },
+      "kick": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       }
     },
     "synth": {
       "perc": {
-        "sample": 9
+        "sample": 12,
+        "downbeatSample": 13
+      },
+      "kick": {
+        "punchDepth": 100,
+        "bodyTone": 0.072,
+        "contour": 0.866,
+        "sustain": 106
       }
     }
   },
   {
     "id": "ex-venda",
-    "label": "ex \u00b7 Venda clap",
+    "label": "ex · Venda clap",
     "kind": "example",
     "bpm": 120,
     "swing": 50,
-    "note": "RHYTHM 001 \u00b7 E(5,12), clap",
+    "note": "RHYTHM 001 · E(5,12), clap, kick under",
     "tracks": {
       "perc": {
         "steps": 12,
@@ -1467,25 +1507,57 @@ window.EXAMPLE_PRESETS = [
         "distribution": 50,
         "probability": 100,
         "b": null
+      },
+      "hat": {
+        "steps": 16,
+        "pulses": 0,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      },
+      "kick": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       }
     },
     "synth": {
       "perc": {
         "sample": 10
+      },
+      "kick": {
+        "punchDepth": 89.9,
+        "punchLength": 54,
+        "timbreX": 0.045,
+        "timbreY": 0.793,
+        "bodyTone": 0.1,
+        "contour": 0.968
       }
     }
   },
   {
     "id": "ex-tresillo",
-    "label": "ex \u00b7 tresillo",
+    "label": "ex · tresillo",
     "kind": "example",
     "bpm": 100,
     "swing": 50,
-    "note": "RHYTHM 001 \u00b7 E(3,8), clave",
+    "note": "RHYTHM 001 · E(3,8), clave",
     "tracks": {
       "perc": {
         "steps": 8,
         "pulses": 3,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      },
+      "kick": {
+        "steps": 16,
+        "pulses": 0,
         "rotation": 0,
         "distribution": 50,
         "probability": 100,
@@ -1500,11 +1572,11 @@ window.EXAMPLE_PRESETS = [
   },
   {
     "id": "ex-cinquillo",
-    "label": "ex \u00b7 cinquillo",
+    "label": "ex · cinquillo",
     "kind": "example",
     "bpm": 100,
     "swing": 50,
-    "note": "RHYTHM 001 \u00b7 E(5,8), clave",
+    "note": "RHYTHM 001 · E(5,8), clave",
     "tracks": {
       "perc": {
         "steps": 8,
@@ -1523,11 +1595,11 @@ window.EXAMPLE_PRESETS = [
   },
   {
     "id": "ex-beep",
-    "label": "ex \u00b7 beep (fm)",
+    "label": "ex · beep (fm)",
     "kind": "example",
     "bpm": 120,
     "swing": 50,
-    "note": "RHYTHM 001 \u00b7 the clinical beep under the knob turn and the distribution sweep; the pattern is overridden per render",
+    "note": "RHYTHM 001 · the clinical beep under the knob turn and the distribution sweep; the pattern is overridden per render",
     "tracks": {
       "fm": {
         "steps": 16,
@@ -1559,11 +1631,11 @@ window.EXAMPLE_PRESETS = [
   },
   {
     "id": "ex-hat",
-    "label": "ex \u00b7 hat",
+    "label": "ex · hat",
     "kind": "example",
     "bpm": 120,
     "swing": 50,
-    "note": "RHYTHM 001 \u00b7 the hat alternative to the beep",
+    "note": "RHYTHM 001 · the hat alternative to the beep",
     "tracks": {
       "hat": {
         "steps": 16,
@@ -1578,6 +1650,7 @@ window.EXAMPLE_PRESETS = [
   }
 ];
 
+// Synth params shared by every genre; a genre's own `synth` block overrides these.
 window.SYNTH_DEFAULTS = {
   "hat": {
     "envelope.decay": 0.017,

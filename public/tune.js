@@ -133,6 +133,8 @@
         samplers,
         kitIndex: 0,
         pitchSemis: 0,
+        downbeatSemis: 0,   // added on the ring's first step (perc sampler)
+        downbeatSampler: null,   // another kit sampler for the ring's first step, or null
         channel,
         // Ring A always plays. Ring B, when enabled, plays after it: the cycle
         // is A's steps then B's steps, exactly as the live app concatenates
@@ -168,9 +170,20 @@
         track.synth = track.samplers[entry.id];
         track.synth.connect(track.channel);
         track.kitIndex = track.def.kit.indexOf(entry);
+        if (track.downbeatSampler && track.downbeatSampler !== track.synth) track.downbeatSampler.connect(track.channel);
         return;
       }
       if (path === 'pitch') { track.pitchSemis = Number(value); return; }
+      if (path === 'downbeatPitch') { track.downbeatSemis = Number(value); return; }
+      if (path === 'downbeatSample') {
+        const i = Math.round(Number(value));
+        const entry = i >= 0 ? track.def.kit[Math.min(track.def.kit.length - 1, i)] : null;
+        const smp = entry ? track.samplers[entry.id] : null;
+        if (track.downbeatSampler && track.downbeatSampler !== track.synth) track.downbeatSampler.disconnect();
+        track.downbeatSampler = smp;
+        if (smp && smp !== track.synth) smp.connect(track.channel);
+        return;
+      }
       // attack / release apply to every sampler in the kit so switching keeps them
       for (const smp of Object.values(track.samplers)) smp[path] = value;
       return;
@@ -214,7 +227,7 @@
     return Tone.Frequency(baseMidi + scale[degree] + octave * 12, 'midi').toNote();
   }
 
-  function trigger(track, time) {
+  function trigger(track, time, downbeat = false) {
     const s = track.synth;
     const notes = [...track.notes];
     if (track.kick) {
@@ -225,7 +238,8 @@
       return;
     }
     if (track.samplers && !track.def.melodic) {
-      s.triggerAttackRelease(Tone.Frequency('C3').transpose(track.pitchSemis).toNote(), '8n', time);
+      const voice = (downbeat && track.downbeatSampler) || s;
+      voice.triggerAttackRelease(Tone.Frequency('C3').transpose(track.pitchSemis + (downbeat ? track.downbeatSemis || 0 : 0)).toNote(), '8n', time);
       return;
     }
     if (track.def.engine === 'NoiseSynth') { s.triggerAttackRelease('16n', time); return; }
@@ -235,11 +249,14 @@
       return;
     }
     if (track.samplers) {
-      // melodic sampler: the grid repitches the sample around C3
-      if (!notes.length) { s.triggerAttackRelease(Tone.Frequency('C3').transpose(track.pitchSemis).toNote(), '8n', time); return; }
+      // melodic sampler: the grid repitches the sample around C3; the ring's first
+      // step may use another sample and/or a semitone offset (the gankogui's low bell)
+      const voice = (downbeat && track.downbeatSampler) || s;
+      const semis = track.pitchSemis + (downbeat ? track.downbeatSemis || 0 : 0);
+      if (!notes.length) { voice.triggerAttackRelease(Tone.Frequency('C3').transpose(semis).toNote(), '8n', time); return; }
       track._i = ((track._i || 0) + 1) % notes.length;
-      const midi = Tone.Frequency(noteFor(track, notes[track._i])).toMidi() - 48 + 60 + track.pitchSemis; // grid octave 3 -> C3
-      s.triggerAttackRelease(Tone.Frequency(midi, 'midi').toNote(), '8n', time);
+      const midi = Tone.Frequency(noteFor(track, notes[track._i])).toMidi() - 48 + 60 + semis; // grid octave 3 -> C3
+      voice.triggerAttackRelease(Tone.Frequency(midi, 'midi').toNote(), '8n', time);
       return;
     }
     if (!notes.length) return;
@@ -285,7 +302,7 @@
           const dur = stepBeats(r.seq.steps);
           let when = time + (pos.beat - from) * beatSec;
           if (dur === 0.25) when += swingOffsetSeconds(r.step, state.swing, dur * beatSec);
-          if (r.seq.pulses > 0 && r.seq.getStep(r.step)) trigger(t, when);
+          if (r.seq.pulses > 0 && r.seq.getStep(r.step)) trigger(t, when, r.step === 0);
           const step = pos.step;
           Tone.getDraw().schedule(() => paintPlayhead(id, step), when);
           pos.step += 1;
@@ -524,13 +541,14 @@
       const cid = 'syn-' + def.id + '-' + path.replace(/\./g, '_');
       if (spec.kind === 'kitIndex') {
         const start = (tunedSynth()[def.id] || {})[path] ?? spec.default;
-        const out = el('span', 'value-display', def.kit[start] ? def.kit[start].label : String(start));
+        const name = i => (i < 0 ? 'same' : def.kit[i] ? def.kit[i].label : String(i));
+        const out = el('span', 'value-display', name(start));
         const r = el('input');
         r.type = 'range'; r.id = cid;
-        r.min = 0; r.max = def.kit.length - 1; r.step = 1; r.value = start;
+        r.min = spec.default < 0 ? -1 : 0; r.max = def.kit.length - 1; r.step = 1; r.value = start;
         r.addEventListener('input', e => {
           const i = Number(e.target.value);
-          out.textContent = def.kit[i] ? def.kit[i].label : String(i);
+          out.textContent = name(i);
           setSynthParam(def.id, path, i);
         });
         wrap.appendChild(out);
@@ -760,7 +778,7 @@
         const disp = c.parentElement && c.parentElement.querySelector('.value-display');
         if (disp) {
           const spec = def.params[path];
-          disp.textContent = (spec.kind === 'kitIndex' && def.kit[v]) ? def.kit[v].label : String(v);
+          disp.textContent = (spec.kind === 'kitIndex') ? (v < 0 ? 'same' : def.kit[v] ? def.kit[v].label : String(v)) : String(v);
         }
       }
     }

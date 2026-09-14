@@ -107,14 +107,22 @@ window.SYNTH_DEFS = [
       { id: 'agogo', label: 'agogo (Ewe)',     file: 'public/samples/percs/rhythm001_agogo.wav' },
       { id: 'bell',  label: 'bell (Ewe)',      file: 'public/samples/percs/rhythm001_bell.wav' },
       { id: 'clap',  label: 'clap (Venda)',    file: 'public/samples/percs/rhythm001_clap.wav' },
-      { id: 'clave', label: 'clave (Cuba)',    file: 'public/samples/percs/rhythm001_clave.wav' }
+      { id: 'clave', label: 'clave (Cuba)',    file: 'public/samples/percs/rhythm001_clave.wav' },
+      // a real gankogui, the Ewe double bell: high bell for the pattern, low bell on "one"
+      // (freesound.org/people/pjcohen/packs/23370, CC-BY pjcohen; 128k previews until the WAVs are fetched with a login)
+      { id: 'gank_hi', label: 'gankogui high', file: 'public/samples/percs/rhythm001_gankogui_high.wav' },
+      { id: 'gank_lo', label: 'gankogui low',  file: 'public/samples/percs/rhythm001_gankogui_low.wav' }
     ],
     options: { attack: 0, release: 0.3 },
     params: {
       'sample':  { kind: 'kitIndex', default: 0, label: 'Sample' },
       'attack':  { min: 0, max: 0.2, step: 0.001, default: 0,   label: 'Attack' },
       'release': { min: 0.02, max: 2, step: 0.01, default: 0.3, label: 'Release' },
-      'pitch':   { min: -12, max: 12, step: 1, default: 0, label: 'Pitch (st)' }
+      'pitch':   { min: -12, max: 12, step: 1, default: 0, label: 'Pitch (st)' },
+      // the hit on the ring's first step can be another sample from the kit — the
+      // gankogui's low bell on "one" — and/or shifted in semitones. -1: same sample.
+      'downbeatSample': { kind: 'kitIndex', default: -1, label: 'Downbeat sample' },
+      'downbeatPitch':  { min: -12, max: 12, step: 1, default: 0, label: 'Downbeat pitch (st)' }
     }
   },
   {

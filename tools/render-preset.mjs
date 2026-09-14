@@ -9,6 +9,8 @@
 //   node tools/render-preset.mjs --bpm 120 --track fm --seq 16,7,0,50 --notes 14 \
 //        --synth '{"modulationIndex":0.1,"envelope.attack":0.001}' --out out/beep.wav
 //   node tools/render-preset.mjs --all --bars 2 --out out/presets
+//   node tools/render-preset.mjs --genre dancehall --bars 4 --automate fill.json --out out/hook.wav
+//     (fill.json: [{"at": 4.8, "track": "snare", "params": {"pulses": 3, "distribution": 80}}, …])
 //
 // Needs the desk served locally (python3 -m http.server 4173 in the repo root).
 // Everything is deterministic as long as probability is 100 on every track.
@@ -107,6 +109,15 @@ async function renderOne(page, job) {
     T.tick = 0;
     Tone.getTransport().stop();
     Tone.getTransport().position = 0;
+    // Knob moves during the take: each event sets a track's ring-A params at `at`
+    // seconds after bar 1 begins, through the desk's own controls, so the take is
+    // what a hand on the desk would have made. Tone fires the callback a lookahead
+    // early; the change lands on the next sixteenth the clock schedules.
+    for (const ev of job.automate || []) {
+      Tone.getTransport().schedule(() => {
+        for (const [k, v] of Object.entries(ev.params || {})) set('num-' + ev.track + '-a-' + k, v);
+      }, job.lead * barSec + ev.at);
+    }
     Tone.getTransport().start(t0);
     await new Promise(r => setTimeout(r, (end + job.tail - raw.currentTime) * 1000 + 500));
     Tone.getTransport().stop();
@@ -153,6 +164,7 @@ if (args.all) {
     tracks: args.tracks ? args.tracks.split(',') : null,
     synth: args.synth ? JSON.parse(args.synth) : null,
     notes: args.notes ? String(args.notes).split(',').map(Number) : null,
+    automate: args.automate ? JSON.parse(fs.existsSync(String(args.automate)) ? fs.readFileSync(String(args.automate), 'utf8') : String(args.automate)) : null,
     out: args.out || 'out/render.wav'
   });
 }
