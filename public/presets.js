@@ -18,6 +18,7 @@
 
 
 
+
 window.GENRE_PRESETS = [
   {
     "id": "house",
@@ -683,7 +684,7 @@ window.GENRE_PRESETS = [
     "id": "cumbia",
     "label": "Cumbia",
     "bpm": 95,
-    "swing": 50,
+    "swing": 46,
     "verified": true,
     "tracks": {
       "kick": {
@@ -786,7 +787,8 @@ window.GENRE_PRESETS = [
       "snare": {
         "sample": 4
       }
-    }
+    },
+    "swingNote": "research: no micro-timing study of cumbia exists; 44-48 (off-beats pulled early) is an inference from the Latin/samba anticipation literature, low confidence -- dial by ear (tools/research-swing.md)"
   },
   {
     "id": "tribal",
