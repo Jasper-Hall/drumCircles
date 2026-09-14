@@ -25,3 +25,6 @@ for d in 50 43 34 57 66; do
   node tools/render-preset.mjs --bpm 120 --track fm  --notes 14 --synth "$BEEP" --norm 0.5 --seq 16,5,0,$d --bars 1 --out $OUT/ex-e5-16-d$d-fm.wav
   node tools/render-preset.mjs --bpm 120 --track hat --norm 0.5 --seq 16,5,0,$d --bars 1 --out $OUT/ex-e5-16-d$d-hat.wav
 done
+# techno and footwork as the kick they are
+node tools/render-preset.mjs --bpm 120 --track kick --norm 0.5 --seq 16,4,0,50 --bars 1 --out $OUT/ex-e4-16-kick.wav
+node tools/render-preset.mjs --bpm 160 --track kick --norm 0.5 --seq 16,6,6,50 --bars 1 --out $OUT/ex-footwork-e6-16-kick.wav
