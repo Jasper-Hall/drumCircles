@@ -24,11 +24,12 @@
     genreId: null,
     scale: 'minor',
     root: 'C',
-    tracks: {},          // id -> { seq, synth, channel, notes:Set, params:{} }
+    tracks: {},          // id -> { seq (ring A), seqB, useB, probability, synth, channel, notes:Set }
     edits: {},           // genreId -> { bpm, swing, tracks:{...}, synth:{trackId:{path:value}} }
     noteSeeds: {},       // trackId -> [indices]
+    swing: NEUTRAL_SWING,
     playing: false,
-    step: 0
+    tick: 0              // global 16th counter; each track folds it into its own A+B cycle
   };
 
   // Debug handle for the desk (and for in-browser verification).
@@ -65,7 +66,7 @@
     return out;
   }
 
-  const editFor = (g) => (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing || 0, tracks: {}, synth: {} });
+  const editFor = (g) => (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing ?? NEUTRAL_SWING, tracks: {}, synth: {} });
 
   // ---- audio -------------------------------------------------------------
   // FX sends default to zero -- dry by default is a deliberate change from the
@@ -131,7 +132,13 @@
         kitIndex: 0,
         pitchSemis: 0,
         channel,
+        // Ring A always plays. Ring B, when enabled, plays after it: the cycle
+        // is A's steps then B's steps, exactly as the live app concatenates
+        // outer/inner. Probability lives on both rings and is one number per track.
         seq: new EuclideanSequencer(16, 0, 0, 100, NEUTRAL_DISTRIBUTION),
+        seqB: new EuclideanSequencer(16, 0, 0, 100, NEUTRAL_DISTRIBUTION),
+        useB: false,
+        probability: 100,
         notes: new Set(tunedNotes()[def.id] || []),
         params: {}
       };
@@ -239,36 +246,49 @@
   }
 
   function setSwing(pct) {
-    // Tone's swing is 0-1 on the swingSubdivision; the app's slider is 0-100 on
-    // 16ths, so keep that convention here and in the exported preset.
-    Tone.getTransport().swingSubdivision = '16n';
-    Tone.getTransport().swing = Math.max(0, Math.min(100, Number(pct) || 0)) / 100;
+    // Bipolar MPC-style swing (engine.js): 50 straight, above late, below early.
+    // Applied per event in the clock; Tone's own positive-only swing stays off.
+    Tone.getTransport().swing = 0;
+    state.swing = Math.min(SWING_MAX, Math.max(SWING_MIN, Number(pct) || NEUTRAL_SWING));
     const sl = document.getElementById('swingControl');
     const out = document.getElementById('swingValue');
-    if (sl) sl.value = pct;
-    if (out) out.textContent = Math.round(pct) + '%';
+    if (sl) sl.value = state.swing;
+    if (out) out.textContent = formatSwing(state.swing);
+  }
+
+  // Which ring a track is on at this tick, and the step within it.
+  function ringAt(t, tick) {
+    const nA = t.seq.steps;
+    const nB = t.useB ? t.seqB.steps : 0;
+    const p = tick % (nA + nB);
+    return p < nA ? { seq: t.seq, step: p } : { seq: t.seqB, step: p - nA };
   }
 
   function startClock() {
     Tone.getTransport().scheduleRepeat((time) => {
-      const step = state.step;
+      const tick = state.tick;
+      const when = time + swingOffsetSeconds(tick, state.swing, Tone.Time('16n').toSeconds());
       for (const id of Object.keys(state.tracks)) {
         const t = state.tracks[id];
-        if (t.seq.pulses > 0 && t.seq.getStep(step)) trigger(t, time);
+        const r = ringAt(t, tick);
+        if (r.seq.pulses > 0 && r.seq.getStep(r.step)) trigger(t, when);
       }
-      Tone.getDraw().schedule(() => paintPlayhead(step), time);
-      state.step = (state.step + 1) % BAR_STEPS;
+      Tone.getDraw().schedule(() => paintPlayhead(tick), when);
+      state.tick += 1;
     }, '16n');
   }
 
   // ---- pattern helpers ---------------------------------------------------
-  // Render a sequencer across one 16-step bar exactly as playback reads it:
-  // getStep() applies rotation, and a pattern shorter than the bar simply loops.
-  function renderBar(seq) {
+  // Render a track's A(+B) cycle exactly as playback reads it: rotation applied,
+  // a cycle shorter than the bar loops, a longer one is shown in full so the
+  // strip and the target line up on the first 16.
+  function renderBar(t) {
+    const cycle = t.seq.steps + (t.useB ? t.seqB.steps : 0);
     const out = [];
-    for (let step = 0; step < BAR_STEPS; step++) {
-      const rotated = ((step - seq.rotation) % seq.steps + seq.steps) % seq.steps;
-      out.push(seq.pattern && seq.pattern[rotated] ? 1 : 0);
+    for (let tick = 0; tick < Math.max(BAR_STEPS, cycle); tick++) {
+      const r = ringAt(t, tick);
+      const rotated = ((r.step - r.seq.rotation) % r.seq.steps + r.seq.steps) % r.seq.steps;
+      out.push(r.seq.pattern && r.seq.pattern[rotated] ? 1 : 0);
     }
     return out;
   }
@@ -313,9 +333,33 @@
       const euclid = el('div', 'tune-section euclid-controls');
       euclid.dataset.label = 'rhythm';
       for (const key of ['steps', 'pulses', 'rotation', 'distribution']) {
-        euclid.appendChild(buildEuclidControl(def.id, key));
+        euclid.appendChild(buildEuclidControl(def.id, key, 'a'));
       }
+      euclid.appendChild(buildProbabilityControl(def.id));
       panel.appendChild(euclid);
+
+      // --- ring B: a second set of the same four, played after ring A
+      const ringB = el('div', 'tune-section euclid-controls ring-b');
+      ringB.dataset.label = 'ring b';
+      const toggle = el('button', 'ring-toggle', 'add ring b');
+      toggle.type = 'button';
+      toggle.id = 'ringb-' + def.id;
+      toggle.title = 'Play a second ring after this one (the cycle becomes A then B)';
+      toggle.addEventListener('click', () => {
+        const t = state.tracks[def.id];
+        t.useB = !t.useB;
+        recordEdit(def.id);
+        syncTrack(def.id);
+        refreshExport();
+      });
+      ringB.appendChild(toggle);
+      const ringBBody = el('div', 'ring-b-body');
+      ringBBody.id = 'ringb-body-' + def.id;
+      for (const key of ['steps', 'pulses', 'rotation', 'distribution']) {
+        ringBBody.appendChild(buildEuclidControl(def.id, key, 'b'));
+      }
+      ringB.appendChild(ringBBody);
+      panel.appendChild(ringB);
 
       // --- live pattern vs target
       const pat = el('div', 'tune-section pattern-section');
@@ -335,7 +379,8 @@
           const g = genre();
           const tp = g && g.tracks[def.id] && g.tracks[def.id].targetParams;
           if (!tp) return;
-          state.tracks[def.id].seq.updateParams(tp.steps, tp.pulses, tp.rotation, 100, tp.distribution);
+          const t = state.tracks[def.id];
+          t.seq.updateParams(tp.steps, tp.pulses, tp.rotation, t.probability, tp.distribution);
           recordEdit(def.id);
           syncTrack(def.id);
           refreshExport();
@@ -361,31 +406,50 @@
     }
   }
 
-  function buildEuclidControl(trackId, key) {
+  const ringSeq = (trackId, ring) => (ring === 'b' ? state.tracks[trackId].seqB : state.tracks[trackId].seq);
+
+  function buildEuclidControl(trackId, key, ring) {
     const wrap = el('div', 'param-control');
     wrap.appendChild(el('label', null, key === 'distribution' ? 'dist' : key));
     const num = el('input', 'value-display euclid-number');
     num.type = 'number';
-    num.id = 'num-' + trackId + '-' + key;
+    num.id = 'num-' + trackId + '-' + ring + '-' + key;
     const range = el('input');
     range.type = 'range';
-    range.id = 'rng-' + trackId + '-' + key;
+    range.id = 'rng-' + trackId + '-' + ring + '-' + key;
     // Distribution's slider walks the DETENT LIST by index -- that is the whole
     // point of the detents -- so its position has to be translated back into a
     // distribution value before it reaches the sequencer. The number box next to
     // it takes a raw 0-100 value and snaps to the nearest detent.
     range.addEventListener('input', (e) => {
       const raw = Number(e.target.value);
-      if (key !== 'distribution') return setParam(trackId, key, raw);
-      const detents = state.tracks[trackId].seq.distributionDetents();
+      if (key !== 'distribution') return setParam(trackId, key, raw, ring);
+      const detents = ringSeq(trackId, ring).distributionDetents();
       const i = Math.max(0, Math.min(detents.length - 1, raw));
-      setParam(trackId, key, detents[i]);
+      setParam(trackId, key, detents[i], ring);
     });
     num.addEventListener('change', (e) => {
       const raw = Number(e.target.value);
-      if (key !== 'distribution') return setParam(trackId, key, raw);
-      setParam(trackId, key, nearest(state.tracks[trackId].seq.distributionDetents(), raw));
+      if (key !== 'distribution') return setParam(trackId, key, raw, ring);
+      setParam(trackId, key, nearest(ringSeq(trackId, ring).distributionDetents(), raw), ring);
     });
+    wrap.appendChild(num);
+    wrap.appendChild(range);
+    return wrap;
+  }
+
+  // One probability per track, 0-100, applied to both rings: each hit that the
+  // pattern schedules is then kept with this chance.
+  function buildProbabilityControl(trackId) {
+    const wrap = el('div', 'param-control');
+    wrap.appendChild(el('label', null, 'prob'));
+    const num = el('input', 'value-display euclid-number');
+    num.type = 'number'; num.id = 'num-' + trackId + '-prob'; num.min = 0; num.max = 100;
+    const range = el('input');
+    range.type = 'range'; range.id = 'rng-' + trackId + '-prob'; range.min = 0; range.max = 100; range.step = 1;
+    const apply = (v) => setProbability(trackId, Math.max(0, Math.min(100, Math.round(Number(v)))));
+    range.addEventListener('input', e => apply(e.target.value));
+    num.addEventListener('change', e => apply(e.target.value));
     wrap.appendChild(num);
     wrap.appendChild(range);
     return wrap;
@@ -473,16 +537,25 @@
   }
 
   // ---- UI: update --------------------------------------------------------
-  function setParam(trackId, key, value) {
+  function setParam(trackId, key, value, ring = 'a') {
     const t = state.tracks[trackId];
-    const s = t.seq;
+    const s = ringSeq(trackId, ring);
     const next = {
       steps: key === 'steps' ? value : s.steps,
       pulses: key === 'pulses' ? value : s.pulses,
       rotation: key === 'rotation' ? value : s.rotation,
       distribution: key === 'distribution' ? value : s.distribution
     };
-    s.updateParams(next.steps, next.pulses, next.rotation, 100, next.distribution);
+    s.updateParams(next.steps, next.pulses, next.rotation, t.probability, next.distribution);
+    recordEdit(trackId);
+    syncTrack(trackId);
+    refreshExport();
+  }
+
+  function setProbability(trackId, value) {
+    const t = state.tracks[trackId];
+    t.probability = value;
+    for (const s of [t.seq, t.seqB]) s.updateParams(s.steps, s.pulses, s.rotation, value, s.distribution);
     recordEdit(trackId);
     syncTrack(trackId);
     refreshExport();
@@ -498,21 +571,28 @@
   function recordEdit(trackId) {
     const g = genre();
     if (!g) return;
-    const s = state.tracks[trackId].seq;
+    const t = state.tracks[trackId];
     const e = editFor(g);
-    e.tracks[trackId] = {
-      steps: s.steps, pulses: s.pulses, rotation: s.rotation, distribution: s.distribution
+    e.tracks[trackId] = ringParams(t);
+  }
+
+  // The preset shape for one track: ring A flat, probability, and ring B as a
+  // nested block or null when unused (so a plain one-ring preset stays plain).
+  function ringParams(t) {
+    const a = t.seq, b = t.seqB;
+    return {
+      steps: a.steps, pulses: a.pulses, rotation: a.rotation, distribution: a.distribution,
+      probability: t.probability,
+      b: t.useB ? { steps: b.steps, pulses: b.pulses, rotation: b.rotation, distribution: b.distribution } : null
     };
   }
 
   // Keep every control, both strips and the match readout in step with the
   // sequencer. Distribution is snapped to its detents, so its slider indexes the
   // detent list rather than the raw 0-100 range.
-  function syncTrack(trackId) {
-    const t = state.tracks[trackId];
-    const s = t.seq;
+  function syncRing(trackId, ring) {
+    const s = ringSeq(trackId, ring);
     const detents = s.distributionDetents();
-
     const bounds = {
       steps: [1, 16, s.steps],
       pulses: [0, s.steps, s.pulses],
@@ -521,8 +601,8 @@
         Math.max(0, detents.indexOf(nearest(detents, s.distribution)))]
     };
     for (const [key, [min, max, val]] of Object.entries(bounds)) {
-      const rng = document.getElementById('rng-' + trackId + '-' + key);
-      const num = document.getElementById('num-' + trackId + '-' + key);
+      const rng = document.getElementById('rng-' + trackId + '-' + ring + '-' + key);
+      const num = document.getElementById('num-' + trackId + '-' + ring + '-' + key);
       if (!rng) continue;
       rng.min = min; rng.max = max; rng.step = 1; rng.value = val;
       if (key === 'distribution') {
@@ -532,8 +612,27 @@
         num.min = min; num.max = max; num.value = val;
       }
     }
+  }
 
-    const live = renderBar(s);
+  function syncTrack(trackId) {
+    const t = state.tracks[trackId];
+    syncRing(trackId, 'a');
+    syncRing(trackId, 'b');
+
+    const prob = document.getElementById('rng-' + trackId + '-prob');
+    const probNum = document.getElementById('num-' + trackId + '-prob');
+    if (prob) prob.value = t.probability;
+    if (probNum) probNum.value = t.probability;
+
+    const toggle = document.getElementById('ringb-' + trackId);
+    const body = document.getElementById('ringb-body-' + trackId);
+    if (toggle) {
+      toggle.textContent = t.useB ? 'remove ring b' : 'add ring b';
+      toggle.classList.toggle('active', t.useB);
+    }
+    if (body) body.hidden = !t.useB;
+
+    const live = renderBar(t);
     const g = genre();
     const target = targetBits(g && g.tracks[trackId] && g.tracks[trackId].target);
     paintStrip('strip-live-' + trackId, live, target);
@@ -562,18 +661,27 @@
   function paintStrip(id, bits, compare) {
     const row = document.getElementById(id);
     if (!row) return;
+    // A ring-B cycle longer than a bar needs more cells; a bar boundary is drawn
+    // every 16 so the eye can still find "one".
+    while (row.children.length < bits.length) {
+      const c = el('div', 'pattern-cell');
+      c.dataset.i = row.children.length;
+      row.appendChild(c);
+    }
+    while (row.children.length > Math.max(BAR_STEPS, bits.length)) row.removeChild(row.lastChild);
+    row.style.gridTemplateColumns = 'repeat(' + row.children.length + ', 1fr)';
     [...row.children].forEach((cell, i) => {
       cell.classList.toggle('hit', !!bits[i]);
       cell.classList.toggle('mismatch', !!compare && bits[i] !== compare[i]);
-      cell.textContent = bits[i] ? '' : '';
+      cell.classList.toggle('bar', i > 0 && i % BAR_STEPS === 0);
     });
   }
 
-  function paintPlayhead(step) {
+  function paintPlayhead(tick) {
     document.querySelectorAll('.pattern-row.live .pattern-cell.playing')
       .forEach(c => c.classList.remove('playing'));
     document.querySelectorAll('.pattern-row.live').forEach(row => {
-      const c = row.children[step];
+      const c = row.children[tick % row.children.length];
       if (c) c.classList.add('playing');
     });
   }
@@ -589,18 +697,23 @@
     const bpm = (edited && edited.bpm) || g.bpm;
     Tone.getTransport().bpm.value = bpm;
     document.getElementById('bpmControl').value = bpm;
-    setSwing((edited && edited.swing != null) ? edited.swing : (g.swing || 0));
+    setSwing((edited && edited.swing != null) ? edited.swing : (g.swing ?? NEUTRAL_SWING));
 
     for (const def of defs()) {
       const src = (edited && edited.tracks[def.id]) || g.tracks[def.id];
       const t = state.tracks[def.id];
+      t.probability = (src && src.probability != null) ? src.probability : 100;
       if (src) {
-        t.seq.updateParams(src.steps, src.pulses, src.rotation, 100, src.distribution);
+        t.seq.updateParams(src.steps, src.pulses, src.rotation, t.probability, src.distribution);
       } else {
         // Melodic tracks have no entry in the preset bank yet -- that is one of
         // the things this page exists to produce. Start them silent.
-        t.seq.updateParams(16, 0, 0, 100, NEUTRAL_DISTRIBUTION);
+        t.seq.updateParams(16, 0, 0, t.probability, NEUTRAL_DISTRIBUTION);
       }
+      const b = src && src.b;
+      t.useB = !!b;
+      if (b) t.seqB.updateParams(b.steps, b.pulses, b.rotation, t.probability, b.distribution);
+      else t.seqB.updateParams(t.seq.steps, 0, 0, t.probability, NEUTRAL_DISTRIBUTION);
       syncTrack(def.id);
     }
 
@@ -639,7 +752,7 @@
       const synth = {};
       for (const tid of Object.keys(g.synth || {})) synth[tid] = { ...(g.synth[tid]) };
       if (e && e.synth) for (const [tid, ps] of Object.entries(e.synth)) synth[tid] = { ...(synth[tid] || {}), ...ps };
-      return { ...g, bpm: (e && e.bpm) || g.bpm, swing: (e && e.swing != null) ? e.swing : (g.swing || 0), tracks, synth };
+      return { ...g, bpm: (e && e.bpm) || g.bpm, swing: (e && e.swing != null) ? e.swing : (g.swing ?? NEUTRAL_SWING), tracks, synth };
     });
     return JSON.stringify({
       presets: out,
@@ -691,7 +804,7 @@
       if (state.playing) {
         Tone.getTransport().stop();
         state.playing = false;
-        state.step = 0;
+        state.tick = 0;
         play.textContent = 'play';
         play.classList.remove('active');
       } else {

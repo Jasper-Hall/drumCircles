@@ -324,3 +324,31 @@ body.tune-page {
   text-transform: lowercase;
 }
 .snap-canon:hover { border-color: var(--accent); }
+
+/* ---- ring B: same four controls, folded away until asked for ---- */
+.ring-toggle {
+  align-self: flex-start;
+  font-size: 10px;
+  text-transform: lowercase;
+  padding: 0.2rem 0.55rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--control-border);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.ring-toggle.active {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+.ring-b-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.ring-b-body[hidden] { display: none; }
+
+/* bar line inside a strip longer than 16 */
+.pattern-row .pattern-cell.bar {
+  margin-left: 4px;
+}

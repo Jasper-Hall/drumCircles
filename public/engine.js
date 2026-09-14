@@ -223,6 +223,32 @@ class EuclideanSequencer {
 }
 
 
+/* ---- Swing ----------------------------------------------------------------
+ * Bipolar, MPC-numbered. 50 = straight. Above 50 the off-beat 16ths (the 2nd
+ * and 4th of each beat) are pushed LATE, on the MPC scale where the off-beat
+ * lands at swing% of the 8th-note pair: 66.7 = triplet feel, 75 = dotted.
+ * Below 50 is the mirror -- the off-beats are pulled EARLY -- which no MPC
+ * offers and which cumbia's anticipated scraper/conga up-beat needs
+ * (tools/research-swing.md). Both apps apply this per event instead of using
+ * Tone's Transport.swing, which is positive-only.
+ *
+ * offset = (swing - 50) / 50 * one 16th step, so 75 -> +half a step and
+ * 25 -> -half a step. The pulled-early side relies on the scheduler's 300 ms
+ * look-ahead (below) so the shifted time is still in the future.
+ */
+const NEUTRAL_SWING = 50;
+const SWING_MIN = 25;
+const SWING_MAX = 75;
+function swingOffsetSeconds(step, swingPct, stepSeconds) {
+    if (step % 2 === 0) return 0;
+    const s = Math.min(SWING_MAX, Math.max(SWING_MIN, Number(swingPct) || NEUTRAL_SWING));
+    return (s - NEUTRAL_SWING) / 50 * stepSeconds;
+}
+function formatSwing(v) {
+    const s = Math.round(Number(v));
+    return s === NEUTRAL_SWING ? 'straight' : s + '%' + (s < NEUTRAL_SWING ? ' (early)' : '');
+}
+
 /* ---- Scheduler hardening ----------------------------------------------
  * Shared by index.html and tune.html; must run before any Tone node exists,
  * which is why it sits at load time in this file (loaded right after Tone).

@@ -4,6 +4,7 @@ class Groovebox {
         this.steps = 16;
         this.currentScale = 'major';
         this.currentStep = 0;
+        this.swing = NEUTRAL_SWING;
         this.rows = 12; // One octave of notes
         this.lastStepTime = 0;
         this.humanizeMs = 0; // groove: ± timing jitter applied in triggerSynth
@@ -62,7 +63,7 @@ class Groovebox {
             // Transport controls
             'playButton': 'Start or stop playback of all sequencers',
             'bpmControl': 'Set the tempo in beats per minute (60-200 BPM). Higher values = faster playback',
-            'swingControl': 'Swing - Delays every other 16th note for a shuffled feel. 0% is straight, higher values push the offbeats later',
+            'swingControl': 'Swing - MPC-style. 50% is straight; above it the off-beat 16ths are pushed later (67% = triplet feel), below it they are pulled earlier (cumbia)',
             'humanizeControl': 'Humanize - Adds a small random timing offset (in ms) to every triggered note so the groove feels less quantized',
 
             // Sequencer visualization
@@ -472,15 +473,17 @@ class Groovebox {
             });
         }
 
-        // Swing: 0-100% mapped to Tone.getTransport().swing's 0-1 range.
-        Tone.getTransport().swingSubdivision = '16n';
+        // Swing: bipolar MPC-style, applied per event in repeat() via
+        // swingOffsetSeconds (engine.js). 50 is straight; Tone's own
+        // Transport.swing is positive-only so it stays at 0.
+        Tone.getTransport().swing = 0;
         const swingControl = document.getElementById('swingControl');
         if (swingControl) {
             swingControl.addEventListener('input', (e) => {
                 const percent = parseFloat(e.target.value);
-                Tone.getTransport().swing = percent / 100;
+                this.swing = percent;
                 const display = e.target.parentElement.querySelector('.value-display');
-                if (display) display.textContent = `${Math.round(percent)}%`;
+                if (display) display.textContent = formatSwing(percent);
                 this.broadcastStateChange('TRANSPORT_CHANGE', { swing: percent });
             });
         }
@@ -508,6 +511,10 @@ class Groovebox {
         // Get current step - use a very large number to prevent resetting too early
         // This allows us to count through all steps of both patterns
         const step = this.currentStep;
+
+        // Swing shifts the off-beat 16ths; the step counter's parity is the
+        // beat grid because the transport repeats every 16n from step 0.
+        time += swingOffsetSeconds(step, this.swing, Tone.Time('16n').toSeconds());
         
         // Trigger synths for each track if step is active
         Object.entries(this.synths).forEach(([name, track]) => {
@@ -1456,12 +1463,12 @@ class Groovebox {
             }
         }
         if (typeof data.swing === 'number' && !Number.isNaN(data.swing)) {
-            Tone.getTransport().swing = data.swing / 100;
+            this.swing = data.swing;
             const swingControl = document.getElementById('swingControl');
             if (swingControl) {
                 swingControl.value = data.swing;
                 const display = swingControl.parentElement.querySelector('.value-display');
-                if (display) display.textContent = `${Math.round(data.swing)}%`;
+                if (display) display.textContent = formatSwing(data.swing);
             }
         }
         if (typeof data.humanize === 'number' && !Number.isNaN(data.humanize)) {

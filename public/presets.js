@@ -10,13 +10,20 @@
 //
 // verified:true  = every canonical pattern for this genre is reachable with one ring.
 // verified:false = at least one is not (unreachable says which); needs ring B.
+//
+// Each track: ring A flat (steps/pulses/rotation/distribution), `probability`
+// 0-100 for both rings, and `b` = a second ring played after A (its own four
+// params) or null. `swing` is bipolar MPC-style: 50 straight, >50 off-beat 16ths
+// late (67 = triplet), <50 pulled early (cumbia) -- see engine.js swingOffsetSeconds.
+
+
 
 window.GENRE_PRESETS = [
   {
     "id": "house",
     "label": "House",
     "bpm": 124,
-    "swing": 37,
+    "swing": 62,
     "verified": true,
     "tracks": {
       "kick": {
@@ -31,7 +38,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -45,38 +54,50 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 4,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 4,
         "pulses": 1,
         "rotation": 1,
         "distribution": 63,
-        "target": "..x...x...x...x."
+        "target": "..x...x...x...x.",
+        "probability": 100,
+        "b": null
       },
       "bass": {
         "steps": 16,
         "pulses": 4,
         "rotation": 3,
-        "distribution": 37
+        "distribution": 37,
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 5,
         "rotation": 0,
-        "distribution": 40
+        "distribution": 40,
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 5,
         "rotation": 2,
-        "distribution": 34
+        "distribution": 34,
+        "probability": 100,
+        "b": null
       },
       "poly": {
         "steps": 16,
         "pulses": 1,
         "rotation": 15,
-        "distribution": 50
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -124,7 +145,7 @@ window.GENRE_PRESETS = [
     "id": "reggaeton",
     "label": "Reggaeton",
     "bpm": 96,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
@@ -139,7 +160,9 @@ window.GENRE_PRESETS = [
           "pulses": 2,
           "rotation": 7,
           "distribution": 55
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -153,7 +176,9 @@ window.GENRE_PRESETS = [
           "pulses": 2,
           "rotation": 2,
           "distribution": 55
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 2,
@@ -167,28 +192,36 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 6,
         "rotation": 0,
         "distribution": 50,
-        "plays": "x.x..x..x.x..x.."
+        "plays": "x.x..x..x.x..x..",
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 4,
         "rotation": 0,
         "distribution": 50,
-        "plays": "x...x...x...x..."
+        "plays": "x...x...x...x...",
+        "probability": 100,
+        "b": null
       },
       "poly": {
         "steps": 16,
         "pulses": 3,
         "rotation": 0,
         "distribution": 50,
-        "plays": "x....x....x....."
+        "plays": "x....x....x.....",
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -216,7 +249,7 @@ window.GENRE_PRESETS = [
     "id": "dancehall",
     "label": "Dancehall",
     "bpm": 100,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
@@ -231,7 +264,9 @@ window.GENRE_PRESETS = [
           "pulses": 2,
           "rotation": 7,
           "distribution": 55
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -245,7 +280,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 6,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 16,
@@ -259,34 +296,44 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 6,
         "rotation": 0,
         "distribution": 70,
-        "plays": "....x.x.x.x.x.x."
+        "plays": "....x.x.x.x.x.x.",
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 7,
         "rotation": 0,
         "distribution": 72,
-        "plays": "....x.xx.x.xx.x."
+        "plays": "....x.xx.x.xx.x.",
+        "probability": 100,
+        "b": null
       },
       "poly": {
         "steps": 16,
         "pulses": 5,
         "rotation": 0,
         "distribution": 95,
-        "plays": "..........xxx.xx"
+        "plays": "..........xxx.xx",
+        "probability": 100,
+        "b": null
       },
       "perc": {
         "steps": 16,
         "pulses": 3,
         "rotation": 15,
-        "distribution": 95
+        "distribution": 95,
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -323,7 +370,7 @@ window.GENRE_PRESETS = [
     "id": "dembow",
     "label": "Dembow Dominicano",
     "bpm": 115,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
@@ -338,7 +385,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -352,7 +401,9 @@ window.GENRE_PRESETS = [
           "pulses": 2,
           "rotation": 2,
           "distribution": 55
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 2,
@@ -366,7 +417,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -387,7 +440,7 @@ window.GENRE_PRESETS = [
     "id": "bailefunk",
     "label": "Baile Funk",
     "bpm": 130,
-    "swing": 0,
+    "swing": 50,
     "verified": false,
     "tracks": {
       "kick": {
@@ -397,7 +450,9 @@ window.GENRE_PRESETS = [
         "distribution": 50,
         "target": "x.....x...x.....",
         "plays": "x.......x.......",
-        "targetParams": null
+        "targetParams": null,
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -406,7 +461,9 @@ window.GENRE_PRESETS = [
         "distribution": 41,
         "target": "..x...x.....x.x.",
         "plays": "...x..x....x..x.",
-        "targetParams": null
+        "targetParams": null,
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 2,
@@ -420,7 +477,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": "kick+snare",
@@ -434,7 +493,7 @@ window.GENRE_PRESETS = [
     "id": "kuduro",
     "label": "Kuduro",
     "bpm": 140,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
@@ -449,7 +508,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -463,7 +524,9 @@ window.GENRE_PRESETS = [
           "pulses": 2,
           "rotation": 13,
           "distribution": 59
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 2,
@@ -477,7 +540,9 @@ window.GENRE_PRESETS = [
           "pulses": 2,
           "rotation": 1,
           "distribution": 63
-        }
+        },
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -491,7 +556,7 @@ window.GENRE_PRESETS = [
     "id": "bouyon",
     "label": "Bouyon",
     "bpm": 150,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
@@ -506,7 +571,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 16,
@@ -520,7 +587,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 4,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 16,
@@ -534,40 +603,52 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 12,
         "rotation": 0,
         "distribution": 50,
-        "plays": "xxx.xxx.xxx.xxx."
+        "plays": "xxx.xxx.xxx.xxx.",
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 4,
         "rotation": 2,
         "distribution": 45,
-        "plays": "..x...x..x...x.."
+        "plays": "..x...x..x...x..",
+        "probability": 100,
+        "b": null
       },
       "poly": {
         "steps": 16,
         "pulses": 4,
         "rotation": 0,
         "distribution": 50,
-        "plays": "x...x...x...x..."
+        "plays": "x...x...x...x...",
+        "probability": 100,
+        "b": null
       },
       "perc": {
         "steps": 16,
         "pulses": 5,
         "rotation": 4,
-        "distribution": 34
+        "distribution": 34,
+        "probability": 100,
+        "b": null
       },
       "bass": {
         "steps": 16,
         "pulses": 4,
         "rotation": 6,
-        "distribution": 50
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -602,7 +683,7 @@ window.GENRE_PRESETS = [
     "id": "cumbia",
     "label": "Cumbia",
     "bpm": 95,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
@@ -610,7 +691,9 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "target": "x...x.x.x...x.x."
+        "target": "x...x.x.x...x.x.",
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -624,7 +707,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 2,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 4,
@@ -638,34 +723,44 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 4,
         "rotation": 2,
         "distribution": 50,
-        "plays": "..x...x...x...x."
+        "plays": "..x...x...x...x.",
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 4,
         "rotation": 2,
         "distribution": 50,
-        "plays": "..x...x...x...x."
+        "plays": "..x...x...x...x.",
+        "probability": 100,
+        "b": null
       },
       "poly": {
         "steps": 16,
         "pulses": 4,
         "rotation": 11,
         "distribution": 50,
-        "plays": "...x...x...x...x"
+        "plays": "...x...x...x...x",
+        "probability": 100,
+        "b": null
       },
       "bass": {
         "steps": 8,
         "pulses": 3,
         "rotation": 2,
-        "distribution": 65
+        "distribution": 65,
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -697,7 +792,7 @@ window.GENRE_PRESETS = [
     "id": "tribal",
     "label": "Tribal (Mexican)",
     "bpm": 126,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
@@ -712,7 +807,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -726,7 +823,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 2,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 4,
@@ -740,7 +839,9 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -754,7 +855,7 @@ window.GENRE_PRESETS = [
     "id": "ukfunky",
     "label": "UK Funky",
     "bpm": 130,
-    "swing": 24,
+    "swing": 58,
     "verified": true,
     "tracks": {
       "kick": {
@@ -769,14 +870,18 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 0,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 16,
         "pulses": 3,
         "rotation": 3,
         "distribution": 6,
-        "target": ".......x.......x"
+        "target": ".......x.......x",
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 4,
@@ -790,27 +895,35 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 2,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 7,
         "rotation": 0,
         "distribution": 50,
-        "plays": "x.x.x.x..x.x.x.."
+        "plays": "x.x.x.x..x.x.x..",
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 5,
         "rotation": 0,
         "distribution": 50,
-        "plays": "x..x..x..x..x..."
+        "plays": "x..x..x..x..x...",
+        "probability": 100,
+        "b": null
       },
       "perc": {
         "steps": 16,
         "pulses": 2,
         "rotation": 3,
-        "distribution": 17
+        "distribution": 17,
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -840,7 +953,7 @@ window.GENRE_PRESETS = [
     "id": "ukdrill",
     "label": "UK Drill",
     "bpm": 142,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "tracks": {
       "kick": {
@@ -848,45 +961,59 @@ window.GENRE_PRESETS = [
         "pulses": 2,
         "rotation": 12,
         "distribution": 24,
-        "target": "x.............x."
+        "target": "x.............x.",
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 16,
         "pulses": 1,
         "rotation": 8,
         "distribution": 50,
-        "target": "........x......."
+        "target": "........x.......",
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 8,
         "pulses": 3,
         "rotation": 0,
         "distribution": 50,
-        "target": "x..x..x.x..x..x."
+        "target": "x..x..x.x..x..x.",
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 0,
         "rotation": 0,
-        "distribution": 50
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 0,
         "rotation": 0,
-        "distribution": 50
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       },
       "perc": {
         "steps": 8,
         "pulses": 0,
         "rotation": 0,
-        "distribution": 50
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       },
       "poly": {
         "steps": 16,
         "pulses": 3,
         "rotation": 0,
-        "distribution": 37
+        "distribution": 37,
+        "probability": 100,
+        "b": null
       }
     },
     "unreachable": null,
@@ -916,7 +1043,7 @@ window.GENRE_PRESETS = [
     "id": "ukgarage",
     "label": "UK Garage",
     "bpm": 135,
-    "swing": 28,
+    "swing": 59,
     "verified": true,
     "unreachable": null,
     "note": null,
@@ -926,7 +1053,9 @@ window.GENRE_PRESETS = [
         "pulses": 2,
         "rotation": 5,
         "distribution": 68,
-        "target": "x.........x....."
+        "target": "x.........x.....",
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 16,
@@ -940,34 +1069,44 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 4,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 16,
         "pulses": 8,
         "rotation": 0,
         "distribution": 83,
-        "target": "..x...x...x...x."
+        "target": "..x...x...x...x.",
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 3,
         "rotation": 0,
         "distribution": 46,
-        "plays": "x....x...x......"
+        "plays": "x....x...x......",
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 3,
         "rotation": 1,
-        "distribution": 56
+        "distribution": 56,
+        "probability": 100,
+        "b": null
       },
       "poly": {
         "steps": 16,
         "pulses": 3,
         "rotation": 0,
         "distribution": 50,
-        "plays": "x....x....x....."
+        "plays": "x....x....x.....",
+        "probability": 100,
+        "b": null
       }
     },
     "researchBpm": 138,
@@ -1005,7 +1144,7 @@ window.GENRE_PRESETS = [
     "id": "hyphy",
     "label": "Hyphy",
     "bpm": 102,
-    "swing": 0,
+    "swing": 50,
     "verified": true,
     "unreachable": null,
     "note": null,
@@ -1015,7 +1154,9 @@ window.GENRE_PRESETS = [
         "pulses": 4,
         "rotation": 0,
         "distribution": 30,
-        "target": "x.......x......."
+        "target": "x.......x.......",
+        "probability": 100,
+        "b": null
       },
       "snare": {
         "steps": 8,
@@ -1029,44 +1170,58 @@ window.GENRE_PRESETS = [
           "pulses": 1,
           "rotation": 4,
           "distribution": 50
-        }
+        },
+        "probability": 100,
+        "b": null
       },
       "hat": {
         "steps": 16,
         "pulses": 3,
         "rotation": 0,
         "distribution": 18,
-        "target": "x.x.x.x.x.x.x.x."
+        "target": "x.x.x.x.x.x.x.x.",
+        "probability": 100,
+        "b": null
       },
       "perc": {
         "steps": 16,
         "pulses": 4,
         "rotation": 15,
-        "distribution": 96
+        "distribution": 96,
+        "probability": 100,
+        "b": null
       },
       "bass": {
         "steps": 16,
         "pulses": 4,
         "rotation": 14,
-        "distribution": 92
+        "distribution": 92,
+        "probability": 100,
+        "b": null
       },
       "pluck": {
         "steps": 16,
         "pulses": 4,
         "rotation": 14,
-        "distribution": 90
+        "distribution": 90,
+        "probability": 100,
+        "b": null
       },
       "poly": {
         "steps": 16,
         "pulses": 5,
         "rotation": 0,
-        "distribution": 50
+        "distribution": 50,
+        "probability": 100,
+        "b": null
       },
       "fm": {
         "steps": 16,
         "pulses": 4,
         "rotation": 2,
-        "distribution": 37
+        "distribution": 37,
+        "probability": 100,
+        "b": null
       }
     },
     "researchBpm": 95,
@@ -1126,6 +1281,17 @@ window.SYNTH_DEFAULTS = {
     "envelope.release": 0.601,
     "oscillator.spread": 42,
     "envelope.decay": 0.172
+  },
+  "kick": {
+    "freq": 60,
+    "punchDepth": 46.5,
+    "punchLength": 125,
+    "timbreX": 0.56,
+    "timbreY": 0.618,
+    "bodyTone": 0.202,
+    "contour": 0.447,
+    "sustain": 154,
+    "release": 230
   }
 };
 
