@@ -1387,6 +1387,197 @@ window.GENRE_PRESETS = [
 ];
 
 // Synth params shared by every genre; a genre's own `synth` block overrides these.
+// RHYTHM 001's example rhythms, tuned on the desk like a genre: one track each,
+// the rest silent. `kind: 'example'` keeps them out of the app's genre list.
+// `notes` pins a melodic track to one grid index (the beep stays one pitch).
+window.EXAMPLE_PRESETS = [
+  {
+    "id": "ex-techno",
+    "label": "ex \u00b7 techno",
+    "kind": "example",
+    "bpm": 120,
+    "swing": 50,
+    "note": "RHYTHM 001 \u00b7 E(4,16) on the kick",
+    "tracks": {
+      "kick": {
+        "steps": 16,
+        "pulses": 4,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      }
+    },
+    "synth": {}
+  },
+  {
+    "id": "ex-footwork",
+    "label": "ex \u00b7 footwork",
+    "kind": "example",
+    "bpm": 160,
+    "swing": 50,
+    "note": "RHYTHM 001 \u00b7 E(6,16) rot 6 on the kick",
+    "tracks": {
+      "kick": {
+        "steps": 16,
+        "pulses": 6,
+        "rotation": 6,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      }
+    },
+    "synth": {}
+  },
+  {
+    "id": "ex-ewe",
+    "label": "ex \u00b7 Ewe bell",
+    "kind": "example",
+    "bpm": 120,
+    "swing": 50,
+    "note": "RHYTHM 001 \u00b7 E(7,12), agogo",
+    "tracks": {
+      "perc": {
+        "steps": 12,
+        "pulses": 7,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      }
+    },
+    "synth": {
+      "perc": {
+        "sample": 8
+      }
+    }
+  },
+  {
+    "id": "ex-venda",
+    "label": "ex \u00b7 Venda clap",
+    "kind": "example",
+    "bpm": 120,
+    "swing": 50,
+    "note": "RHYTHM 001 \u00b7 E(5,12), clap",
+    "tracks": {
+      "perc": {
+        "steps": 12,
+        "pulses": 5,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      }
+    },
+    "synth": {
+      "perc": {
+        "sample": 9
+      }
+    }
+  },
+  {
+    "id": "ex-tresillo",
+    "label": "ex \u00b7 tresillo",
+    "kind": "example",
+    "bpm": 100,
+    "swing": 50,
+    "note": "RHYTHM 001 \u00b7 E(3,8), clave",
+    "tracks": {
+      "perc": {
+        "steps": 8,
+        "pulses": 3,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      }
+    },
+    "synth": {
+      "perc": {
+        "sample": 10
+      }
+    }
+  },
+  {
+    "id": "ex-cinquillo",
+    "label": "ex \u00b7 cinquillo",
+    "kind": "example",
+    "bpm": 100,
+    "swing": 50,
+    "note": "RHYTHM 001 \u00b7 E(5,8), clave",
+    "tracks": {
+      "perc": {
+        "steps": 8,
+        "pulses": 5,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      }
+    },
+    "synth": {
+      "perc": {
+        "sample": 10
+      }
+    }
+  },
+  {
+    "id": "ex-beep",
+    "label": "ex \u00b7 beep (fm)",
+    "kind": "example",
+    "bpm": 120,
+    "swing": 50,
+    "note": "RHYTHM 001 \u00b7 the clinical beep under the knob turn and the distribution sweep; the pattern is overridden per render",
+    "tracks": {
+      "fm": {
+        "steps": 16,
+        "pulses": 7,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      }
+    },
+    "synth": {
+      "fm": {
+        "modulationIndex": 0.1,
+        "harmonicity": 1,
+        "envelope.attack": 0.001,
+        "envelope.decay": 0.06,
+        "envelope.sustain": 0.05,
+        "envelope.release": 0.001,
+        "modulationEnvelope.attack": 0.001,
+        "modulationEnvelope.decay": 0.001,
+        "modulationEnvelope.release": 0.001
+      }
+    },
+    "notes": {
+      "fm": [
+        14
+      ]
+    }
+  },
+  {
+    "id": "ex-hat",
+    "label": "ex \u00b7 hat",
+    "kind": "example",
+    "bpm": 120,
+    "swing": 50,
+    "note": "RHYTHM 001 \u00b7 the hat alternative to the beep",
+    "tracks": {
+      "hat": {
+        "steps": 16,
+        "pulses": 7,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 100,
+        "b": null
+      }
+    },
+    "synth": {}
+  }
+];
+
 window.SYNTH_DEFAULTS = {
   "hat": {
     "envelope.decay": 0.017,

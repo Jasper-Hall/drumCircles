@@ -352,3 +352,5 @@ body.tune-page {
 .pattern-row .pattern-cell.bar {
   margin-left: 4px;
 }
+
+.genre-rule { margin: 10px 0 4px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,.18); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .6; }

@@ -35,7 +35,9 @@
   // Debug handle for the desk (and for in-browser verification).
   window.__tune = state;
 
-  const presets = () => window.GENRE_PRESETS || [];
+  // The desk tunes the genres and RHYTHM 001's example rhythms alike; the examples
+  // sit after a rule in the list and go out under their own key.
+  const presets = () => (window.GENRE_PRESETS || []).concat(window.EXAMPLE_PRESETS || []);
   // Tuned state persisted back into presets.js. Layered on top of SYNTH_DEFS on
   // boot so a reload of the desk picks up where the last session left off.
   const tunedSynth = () => window.SYNTH_DEFAULTS || {};
@@ -307,12 +309,14 @@
   function buildGenreList() {
     const list = document.getElementById('genreList');
     list.innerHTML = '';
+    let ruled = false;
     for (const g of presets()) {
-      const b = el('button', 'genre-item' + (g.verified ? '' : ' unreachable'));
+      if (g.kind === 'example' && !ruled) { list.appendChild(el('div', 'genre-rule', 'rhythm 001 examples')); ruled = true; }
+      const b = el('button', 'genre-item' + (g.verified || g.kind === 'example' ? '' : ' unreachable'));
       b.type = 'button';
       b.dataset.genre = g.id;
       b.appendChild(el('span', 'genre-name', g.label));
-      if (!g.verified) b.appendChild(el('span', 'genre-flag', 'no ring'));
+      if (!g.verified && g.kind !== 'example') b.appendChild(el('span', 'genre-flag', 'no ring'));
       b.appendChild(el('span', 'genre-bpm', g.bpm + ' bpm'));
       b.title = g.note || '';
       b.addEventListener('click', () => selectGenre(g.id));
@@ -717,6 +721,9 @@
       syncTrack(def.id);
     }
 
+    // An example can pin a melodic track to one grid note (the beep stays one pitch).
+    if (g.notes) for (const [tid, idx] of Object.entries(g.notes)) if (state.tracks[tid]) state.tracks[tid].notes = new Set(idx);
+
     // Synth params follow the genre. Apply the resolved set to the engines and
     // repaint the controls so what you see is what the genre sounds like.
     for (const def of defs()) {
@@ -755,7 +762,8 @@
       return { ...g, bpm: (e && e.bpm) || g.bpm, swing: (e && e.swing != null) ? e.swing : (g.swing ?? NEUTRAL_SWING), tracks, synth };
     });
     return JSON.stringify({
-      presets: out,
+      presets: out.filter(g => g.kind !== 'example'),
+      examples: out.filter(g => g.kind === 'example'),
       synthDefaults: tunedSynth(),   // the global base layer, unchanged by the desk
       noteSeeds: state.noteSeeds,
       scale: state.scale,
