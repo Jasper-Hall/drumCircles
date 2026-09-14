@@ -7,7 +7,7 @@ const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) =>
   a.startsWith('--') ? [a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true] : []).filter(Boolean));
 const trackId = args.track || 'membrane';
 const CHROME = args.chrome || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const DPR = 2;
+const DPR = 3;
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true,
@@ -27,8 +27,8 @@ const card = await page.evaluate((id) => {
   document.body.style.userSelect = 'none';
   return { x: r.left, y: r.top, w: r.width, h: r.height };
 }, trackId);
-const cropW = Math.round(card.w + 90), cropH = Math.round(cropW * 16 / 9);
-const crop = { x: Math.round(card.x - 45), y: Math.round(card.y - 4), width: cropW, height: cropH };
+const cropW = Math.round(card.w + 24), cropH = Math.round(cropW * 16 / 9);
+const crop = { x: Math.round(card.x - 12), y: Math.round(card.y - 6), width: cropW, height: cropH };
 await sleep(300);
 
 // a knob's surface centre in viewport pixels (zoom applied)
