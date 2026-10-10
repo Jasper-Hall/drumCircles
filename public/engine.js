@@ -224,17 +224,30 @@ class EuclideanSequencer {
 
 
 /* ---- Swing ----------------------------------------------------------------
- * Bipolar, MPC-numbered. 50 = straight. Above 50 the off-beat 16ths (the 2nd
- * and 4th of each beat) are pushed LATE, on the MPC scale where the off-beat
- * lands at swing% of the 8th-note pair: 66.7 = triplet feel, 75 = dotted.
- * Below 50 is the mirror -- the off-beats are pulled EARLY -- which no MPC
- * offers and which cumbia's anticipated scraper/conga up-beat needs
- * (tools/research-swing.md). Both apps apply this per event instead of using
- * Tone's Transport.swing, which is positive-only.
+ * Bipolar, MPC-numbered. 50 = straight. Above 50 the off-beat step of each
+ * group is pushed LATE, on the MPC scale where the off-beat lands at swing%
+ * of the pair: 66.7 = triplet feel, 75 = dotted. Below 50 is the mirror --
+ * the off-beats are pulled EARLY -- which no MPC offers and which cumbia's
+ * anticipated scraper/conga up-beat needs (tools/research-swing.md). Both
+ * apps apply this per event instead of using Tone's Transport.swing, which
+ * is positive-only.
  *
- * offset = (swing - 50) / 50 * one 16th step, so 75 -> +half a step and
- * 25 -> -half a step. The pulled-early side relies on the scheduler's 300 ms
- * look-ahead (below) so the shifted time is still in the future.
+ * Binary (16th) rings group steps 2 at a time (an 8th-note pair) and shift
+ * the 2nd of the pair -- the classic MPC convention. Ternary (triplet-eighth)
+ * rings group steps 3 at a time (a beat's triplet). There the swung note is
+ * the UPBEAT, the third pulse that leads into the next beat: a 2:1 triplet
+ * already is 66.7% swing, so pushing that pulse later hardens the shuffle
+ * and pulling it earlier straightens it. The middle pulse moves half as far
+ * so it stays midway between downbeat and upbeat and the three gaps grade
+ * evenly instead of bunching (Sioros et al., arXiv:1606.06197, "ternary
+ * swing"). In general pulse k of an n-group shifts by k/(n-1) of the offset.
+ *
+ * offset = (swing - 50) / 50 * one step, so 75 -> +half a step and 25 ->
+ * -half a step, scaled to whatever that ring's step duration is. On a triplet
+ * ring that lands 25 exactly on straight 16th-16th-8th (0, 1/4, 1/2 of the
+ * beat) and 75 on a hard 5:1 shuffle (0, 5/12, 5/6). The pulled-early side
+ * relies on the scheduler's 300 ms look-ahead (below) so the shifted time is
+ * still in the future.
  */
 const NEUTRAL_SWING = 50;
 const SWING_MIN = 25;
@@ -247,10 +260,15 @@ const SWING_MAX = 75;
 function stepBeats(steps) {
     return steps > 0 && steps % 3 === 0 ? 1 / 3 : 1 / 4;
 }
-function swingOffsetSeconds(step, swingPct, stepSeconds) {
-    if (step % 2 === 0) return 0;
+/* Group size for swing purposes: 3 for a triplet-eighth ring, 2 otherwise. */
+function swingGroupSize(dur) {
+    return dur === 1 / 3 ? 3 : 2;
+}
+function swingOffsetSeconds(step, swingPct, stepSeconds, groupSize = 2) {
+    const k = ((step % groupSize) + groupSize) % groupSize;
+    if (k === 0) return 0;
     const s = Math.min(SWING_MAX, Math.max(SWING_MIN, Number(swingPct) || NEUTRAL_SWING));
-    return (s - NEUTRAL_SWING) / 50 * stepSeconds;
+    return (s - NEUTRAL_SWING) / 50 * stepSeconds * k / (groupSize - 1);
 }
 function formatSwing(v) {
     const s = Math.round(Number(v));

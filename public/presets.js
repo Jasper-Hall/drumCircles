@@ -543,55 +543,74 @@ window.GENRE_PRESETS = [
   {
     "id": "kuduro",
     "label": "Kuduro",
-    "bpm": 140,
-    "swing": 50,
+    "bpm": 127,
+    "swing": 67,
     "verified": true,
     "tracks": {
       "kick": {
         "steps": 8,
-        "pulses": 3,
-        "rotation": 6,
-        "distribution": 37,
-        "target": "x...x...x...x...",
-        "plays": "x..x..x.x..x..x.",
-        "targetParams": {
-          "steps": 4,
-          "pulses": 1,
-          "rotation": 0,
-          "distribution": 50
-        },
-        "probability": 100,
-        "b": null
-      },
-      "snare": {
-        "steps": 8,
-        "pulses": 1,
+        "pulses": 2,
         "rotation": 4,
         "distribution": 50,
-        "target": "x.....x.........",
-        "plays": "....x.......x...",
-        "targetParams": {
-          "steps": 16,
-          "pulses": 2,
-          "rotation": 13,
-          "distribution": 59
-        },
+        "probability": 91,
+        "b": null,
+        "target": "x...x...x...x..."
+      },
+      "snare": {
+        "steps": 12,
+        "pulses": 2,
+        "rotation": 0,
+        "distribution": 35,
+        "probability": 100,
+        "b": null,
+        "target": "x.....x........."
+      },
+      "hat": {
+        "steps": 12,
+        "pulses": 6,
+        "rotation": 11,
+        "distribution": 57,
+        "probability": 100,
+        "b": null,
+        "target": "..xx..xx..xx..xx"
+      },
+      "perc": {
+        "steps": 12,
+        "pulses": 3,
+        "rotation": 0,
+        "distribution": 45,
         "probability": 100,
         "b": null
       },
-      "hat": {
-        "steps": 2,
-        "pulses": 1,
+      "bass": {
+        "steps": 16,
+        "pulses": 0,
+        "rotation": 0,
+        "distribution": 37,
+        "probability": 100,
+        "b": null
+      },
+      "pluck": {
+        "steps": 16,
+        "pulses": 5,
         "rotation": 0,
         "distribution": 50,
-        "target": "..xx..xx..xx..xx",
-        "plays": "x.x.x.x.x.x.x.x.",
-        "targetParams": {
-          "steps": 4,
-          "pulses": 2,
-          "rotation": 1,
-          "distribution": 63
-        },
+        "probability": 100,
+        "b": null
+      },
+      "fm": {
+        "steps": 12,
+        "pulses": 9,
+        "rotation": 0,
+        "distribution": 50,
+        "probability": 75,
+        "b": null
+      },
+      "poly": {
+        "steps": 16,
+        "pulses": 5,
+        "rotation": 0,
+        "distribution": 50,
         "probability": 100,
         "b": null
       }
@@ -601,7 +620,63 @@ window.GENRE_PRESETS = [
     "researchBpm": 140,
     "targetConfidence": "low",
     "targetSource": "tools/research-genres.md",
-    "synth": {}
+    "synth": {
+      "kick": {
+        "timbreX": 0.031,
+        "release": 254,
+        "sustain": 98,
+        "contour": 0.772,
+        "punchLength": 78,
+        "timbreY": 0.015,
+        "bodyTone": 0.155,
+        "punchDepth": 5.8,
+        "freq": 70.6
+      },
+      "snare": {
+        "sample": 0,
+        "pitch": 12,
+        "attack": 0.064
+      },
+      "hat": {
+        "envelope.attack": 0.017,
+        "envelope.release": 0.025,
+        "harmonicity": 0.9,
+        "frequency": 537,
+        "envelope.decay": 0.001
+      },
+      "perc": {
+        "sample": 10,
+        "downbeatPitch": 8,
+        "downbeatSample": 1
+      },
+      "bass": {
+        "envelope.decay": 0.87,
+        "filterEnvelope.baseFrequency": 85,
+        "filterEnvelope.octaves": 0.2,
+        "envelope.release": 0.96,
+        "envelope.sustain": 1,
+        "filter.Q": 0.8
+      },
+      "pluck": {
+        "resonance": 0.58,
+        "dampening": 1000
+      },
+      "poly": {
+        "envelope.release": 0.338,
+        "oscillator.type": "fattriangle",
+        "oscillator.spread": 17,
+        "envelope.attack": 0.544
+      },
+      "fm": {
+        "modulationIndex": 4,
+        "modulationEnvelope.release": 0.144,
+        "envelope.release": 0.047,
+        "harmonicity": 0.1,
+        "modulationEnvelope.attack": 0.001,
+        "envelope.decay": 0.113,
+        "envelope.sustain": 0.11
+      }
+    }
   },
   {
     "id": "bouyon",
@@ -1173,7 +1248,7 @@ window.GENRE_PRESETS = [
         "pulses": 1,
         "rotation": 0,
         "distribution": 50,
-        "probability": 63,
+        "probability": 55,
         "b": {
           "steps": 8,
           "pulses": 3,
@@ -1201,19 +1276,23 @@ window.GENRE_PRESETS = [
       "hat": {
         "steps": 16,
         "pulses": 8,
-        "rotation": 0,
-        "distribution": 83,
-        "target": "..x...x...x...x.",
-        "probability": 100,
-        "b": null
+        "rotation": 12,
+        "distribution": 97,
+        "probability": 86,
+        "b": {
+          "steps": 16,
+          "pulses": 5,
+          "rotation": 13,
+          "distribution": 97
+        },
+        "target": "..x...x...x...x."
       },
       "pluck": {
         "steps": 16,
         "pulses": 3,
         "rotation": 0,
         "distribution": 46,
-        "plays": "x....x...x......",
-        "probability": 100,
+        "probability": 87,
         "b": null
       },
       "fm": {
@@ -1221,7 +1300,7 @@ window.GENRE_PRESETS = [
         "pulses": 3,
         "rotation": 1,
         "distribution": 56,
-        "probability": 100,
+        "probability": 80,
         "b": null
       },
       "poly": {
@@ -1265,8 +1344,12 @@ window.GENRE_PRESETS = [
         "envelope.release": 0.034
       },
       "hat": {
-        "envelope.attack": 0.013,
-        "resonance": 1500
+        "envelope.attack": 0.015,
+        "resonance": 4600,
+        "envelope.decay": 0.026,
+        "harmonicity": 6.4,
+        "modulationIndex": 75,
+        "octaves": 1.5
       }
     }
   },
@@ -1693,8 +1776,9 @@ window.NOTE_SEEDS = {
     8
   ],
   "bass": [
+    8,
     10,
-    13
+    11
   ],
   "pluck": [
     0,
@@ -1702,15 +1786,16 @@ window.NOTE_SEEDS = {
     2
   ],
   "fm": [
+    10,
     11,
-    12,
     21
   ],
   "poly": [
     0,
     1,
     3,
-    14
+    14,
+    19
   ]
 };
 

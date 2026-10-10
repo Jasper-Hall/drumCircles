@@ -526,8 +526,7 @@ class Groovebox {
                 const dur = stepBeats(ring.steps);
                 const stepSec = dur * beatSec;
                 let t = time + (pos.beat - from) * beatSec;
-                // MPC swing is a sixteenth-note thing: triplet rings keep straight
-                if (dur === 0.25) t += swingOffsetSeconds(ring.index, this.swing, stepSec);
+                t += swingOffsetSeconds(ring.index, this.swing, stepSec, swingGroupSize(dur));
                 if (track.getStepValue(step)) {
                     track.currentNoteIndex = step;
                     this.triggerSynth(name, track, t, step, stepSec);

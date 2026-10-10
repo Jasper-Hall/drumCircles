@@ -287,7 +287,8 @@
   // and its own position in beats, and every step that falls inside the tick's
   // window is scheduled at its exact time. A step is a sixteenth or, on a ring
   // whose length is a multiple of three, a triplet eighth (engine.js stepBeats),
-  // so 12 steps fill a bar in 12/8. Swing shifts the off-beat sixteenths only.
+  // so 12 steps fill a bar in 12/8. Swing shifts the off-beat step of each
+  // pair (sixteenths) or triplet (triplet eighths) -- see engine.js.
   function startClock() {
     Tone.getTransport().scheduleRepeat((time) => {
       const tick = state.tick;
@@ -301,7 +302,7 @@
           const r = ringAt(t, pos.step);
           const dur = stepBeats(r.seq.steps);
           let when = time + (pos.beat - from) * beatSec;
-          if (dur === 0.25) when += swingOffsetSeconds(r.step, state.swing, dur * beatSec);
+          when += swingOffsetSeconds(r.step, state.swing, dur * beatSec, swingGroupSize(dur));
           if (r.seq.pulses > 0 && r.seq.getStep(r.step)) trigger(t, when, r.step === 0);
           const step = pos.step;
           Tone.getDraw().schedule(() => paintPlayhead(id, step), when);
