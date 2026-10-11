@@ -4,10 +4,10 @@
  * -- genre preset parameters, synth defaults, note seeds -- be dialled in against
  * the REAL engine, then exported as JSON to paste back into the repo.
  *
- * It deliberately does not import groovebox.js: that file boots the whole live
- * app on DOMContentLoaded. It shares the parts that must not diverge --
- * EuclideanSequencer from engine.js, the roster and param specs from synths.js,
- * the preset bank from presets.js.
+ * It shares every part that must not diverge from the app -- EuclideanSequencer
+ * from engine.js, the roster and param specs from synths.js, the voices and the
+ * clock from player.js, the preset bank from presets.js -- so a preset dialled
+ * here plays identically at index.html.
  */
 (() => {
   'use strict';
@@ -41,302 +41,50 @@
   // Tuned state persisted back into presets.js. Layered on top of SYNTH_DEFS on
   // boot so a reload of the desk picks up where the last session left off.
   const tunedSynth = () => window.SYNTH_DEFAULTS || {};
-  const tunedNotes = () => window.NOTE_SEEDS || {};
   const tunedScale = () => window.TUNED_SCALE || null;
   const defs = () => window.SYNTH_DEFS || [];
   const genre = () => presets().find(g => g.id === state.genreId);
 
-  // Synth params are PER GENRE. Resolution order, later wins:
-  //   SYNTH_DEFS spec default  <  SYNTH_DEFAULTS (global, from presets.js)
-  //   <  genre.synth[track] (shipped)  <  this session's edits for the genre.
-  // Every param is resolved on every genre switch so nothing leaks between genres.
+  // Synth params are PER GENRE; player.resolveSynth layers the spec default,
+  // SYNTH_DEFAULTS and the shipped genre.synth, and this session's edits win.
   function resolvedSynth(trackId) {
-    const def = defs().find(d => d.id === trackId);
     const g = genre();
     const e = g && state.edits[g.id];
-    const out = {};
-    for (const [path, spec] of Object.entries(def.params)) {
-      let v = spec.default;
-      const glob = tunedSynth()[trackId];
-      if (glob && glob[path] != null) v = glob[path];
-      const shipped = g && g.synth && g.synth[trackId];
-      if (shipped && shipped[path] != null) v = shipped[path];
-      const ed = e && e.synth && e.synth[trackId];
-      if (ed && ed[path] != null) v = ed[path];
-      out[path] = v;
-    }
-    return out;
+    return player.resolveSynth(trackId, g, e && e.synth && e.synth[trackId]);
   }
 
   const editFor = (g) => (state.edits[g.id] ||= { bpm: g.bpm, swing: g.swing ?? NEUTRAL_SWING, tracks: {}, synth: {} });
 
   // ---- audio -------------------------------------------------------------
-  // FX sends default to zero -- dry by default is a deliberate change from the
-  // current app, where everything arrives pre-soaked in reverb.
-  // Tone 14 wraps its context in standardized-audio-context; the AudioWorklet the
-  // kick needs must be constructed on the NATIVE context underneath. That handle
-  // is a private field, but Tone is pinned to 14.8.49 on the CDN so it is stable.
-  function nativeContext() {
-    const rc = Tone.getContext().rawContext;
-    if (rc instanceof AudioContext) return rc;
-    if (rc && rc._nativeAudioContext instanceof AudioContext) return rc._nativeAudioContext;
-    if (rc && rc._nativeContext instanceof AudioContext) return rc._nativeContext;
-    throw new Error('no native AudioContext under Tone.getContext().rawContext');
-  }
+  // Voices, parameter routing, note choice and the clock live in player.js,
+  // shared with the app so a preset sounds the same in both places.
+  const player = window.createPlayer(state, { onStep: (id, step) => paintPlayhead(id, step) });
+  const applyParam = player.applyParam;
+  const renderBar = player.renderBar;
 
   async function buildAudio() {
-    const raw = nativeContext();
+    await player.buildAudio();
     for (const def of defs()) {
-      const opts = JSON.parse(JSON.stringify(def.options));
-      let synth, kick = null, samplers = null;
-      const channel = new Tone.Channel({
-        volume: (window.TRACK_VOLUMES || {})[def.id] ?? -20,
-        pan: 0
-      }).toDestination();
-
-      if (def.engine === 'FaustKickVA') {
-        // The MutaxKick VA engine as an AudioWorklet on the native context Tone
-        // is running on -- same clock, so transport times line up. A native node
-        // cannot be connected into Tone's wrapped graph, so the kick gets its own
-        // native gain straight to the destination; `channel` stays as the volume
-        // source of truth and is mirrored onto that gain.
-        kick = await window.createFaustKick(raw);
-        for (const [k, v] of Object.entries(opts)) kick.set(k, v);
-        const gain = raw.createGain();
-        gain.gain.value = Tone.dbToGain((window.TRACK_VOLUMES || {})[def.id] ?? -20);
-        kick.node.connect(gain);
-        gain.connect(raw.destination);
-        kick.outGain = gain;
-        synth = null;
-      } else if (def.engine === 'Sampler') {
-        // One Tone.Sampler per kit entry, all loaded up front, only the chosen
-        // one wired in -- so switching is instant and never re-fetches.
-        samplers = {};
-        for (const entry of def.kit) {
-          samplers[entry.id] = new Tone.Sampler({ urls: { C3: entry.file }, attack: opts.attack, release: opts.release });
-        }
-        synth = samplers[def.kit[0].id];
-        synth.connect(channel);
-      } else if (def.engine === 'PolySynth') {
-        synth = new Tone.PolySynth(Tone.Synth, opts);
-        if (def.maxPolyphony) synth.maxPolyphony = def.maxPolyphony;
-        synth.connect(channel);
-      } else {
-        synth = new Tone[def.engine](opts);
-        synth.connect(channel);
-      }
-
-      state.tracks[def.id] = {
-        def,
-        synth,
-        kick,
-        samplers,
-        kitIndex: 0,
-        pitchSemis: 0,
-        downbeatSemis: 0,   // added on the ring's first step (perc sampler)
-        downbeatSampler: null,   // another kit sampler for the ring's first step, or null
-        channel,
-        // Ring A always plays. Ring B, when enabled, plays after it: the cycle
-        // is A's steps then B's steps, exactly as the live app concatenates
-        // outer/inner. Probability lives on both rings and is one number per track.
-        seq: new EuclideanSequencer(16, 0, 0, 100, NEUTRAL_DISTRIBUTION),
-        seqB: new EuclideanSequencer(16, 0, 0, 100, NEUTRAL_DISTRIBUTION),
-        useB: false,
-        probability: 100,
-        notes: new Set(tunedNotes()[def.id] || []),
-        params: {}
-      };
+      const t = state.tracks[def.id];
       // Previously dialled synth values become this session's starting point and
       // stay in the export, so they are not silently dropped on the next save.
-      for (const [path, value] of Object.entries(tunedSynth()[def.id] || {})) {
-        applyParam(state.tracks[def.id], path, value);
-      }
-      if (state.tracks[def.id].notes.size) state.noteSeeds[def.id] = [...state.tracks[def.id].notes];
+      for (const [path, value] of Object.entries(tunedSynth()[def.id] || {})) applyParam(t, path, value);
+      if (t.notes.size) state.noteSeeds[def.id] = [...t.notes];
     }
     const sc = tunedScale();
     if (sc) { state.scale = sc.scale || state.scale; state.root = sc.root || state.root; }
   }
 
-  // Write a dotted path ('envelope.decay') into a live Tone node. Tone exposes
-  // most of these as Signal/Param objects with a .value, and plain fields
-  // otherwise, so both have to be handled.
-  function applyParam(track, path, value) {
-    if (track.kick) { track.kick.set(path, value); return; }
-    if (track.samplers) {
-      if (path === 'sample') {
-        const entry = track.def.kit[Math.max(0, Math.min(track.def.kit.length - 1, Math.round(value)))];
-        if (!entry || track.samplers[entry.id] === track.synth) return;
-        track.synth.disconnect();
-        track.synth = track.samplers[entry.id];
-        track.synth.connect(track.channel);
-        track.kitIndex = track.def.kit.indexOf(entry);
-        if (track.downbeatSampler && track.downbeatSampler !== track.synth) track.downbeatSampler.connect(track.channel);
-        return;
-      }
-      if (path === 'pitch') { track.pitchSemis = Number(value); return; }
-      if (path === 'downbeatPitch') { track.downbeatSemis = Number(value); return; }
-      if (path === 'downbeatSample') {
-        const i = Math.round(Number(value));
-        const entry = i >= 0 ? track.def.kit[Math.min(track.def.kit.length - 1, i)] : null;
-        const smp = entry ? track.samplers[entry.id] : null;
-        if (track.downbeatSampler && track.downbeatSampler !== track.synth) track.downbeatSampler.disconnect();
-        track.downbeatSampler = smp;
-        if (smp && smp !== track.synth) smp.connect(track.channel);
-        return;
-      }
-      // attack / release apply to every sampler in the kit so switching keeps them
-      for (const smp of Object.values(track.samplers)) smp[path] = value;
-      return;
-    }
-    const parts = path.split('.');
-    let node = track.synth;
-    // PolySynth proxies its voices through set().
-    if (track.def.engine === 'PolySynth') {
-      const patch = {};
-      let cur = patch;
-      parts.forEach((p, i) => {
-        if (i === parts.length - 1) cur[p] = value;
-        else { cur[p] = {}; cur = cur[p]; }
-      });
-      track.synth.set(patch);
-      return;
-    }
-    for (let i = 0; i < parts.length - 1; i++) {
-      node = node && node[parts[i]];
-      if (!node) return;
-    }
-    const leaf = parts[parts.length - 1];
-    if (node && node[leaf] && typeof node[leaf] === 'object' && 'value' in node[leaf]) {
-      node[leaf].value = value;
-    } else if (node) {
-      node[leaf] = value;
-    }
-  }
-
-  function noteFor(track, index) {
-    const scale = window.SCALES[state.scale];
-    const baseMidi = Tone.Frequency(state.root + '0').toMidi();
-    let octave = Math.floor(index / scale.length);
-    const degree = index % scale.length;
-    // Kick is a kick: never let the grid pitch it out of the bottom octaves.
-    if (track.def.octaveLock) {
-      octave = Math.min(track.def.octaveLock.max, Math.max(track.def.octaveLock.min, octave));
-    } else {
-      octave += 3;
-    }
-    return Tone.Frequency(baseMidi + scale[degree] + octave * 12, 'midi').toNote();
-  }
-
-  function trigger(track, time, downbeat = false) {
-    const s = track.synth;
-    const notes = [...track.notes];
-    if (track.kick) {
-      // Fundamental from the (octave-locked) grid if any note is chosen, else the
-      // engine's own freq knob. Gate is an AudioParam, so this is sample-accurate.
-      const freq = notes.length ? Tone.Frequency(noteFor(track, notes[0])).toFrequency() : null;
-      track.kick.trigger(time, freq);
-      return;
-    }
-    if (track.samplers && !track.def.melodic) {
-      const voice = (downbeat && track.downbeatSampler) || s;
-      voice.triggerAttackRelease(Tone.Frequency('C3').transpose(track.pitchSemis + (downbeat ? track.downbeatSemis || 0 : 0)).toNote(), '8n', time);
-      return;
-    }
-    if (track.def.engine === 'NoiseSynth') { s.triggerAttackRelease('16n', time); return; }
-    if (!track.def.melodic) {
-      const n = notes.length ? noteFor(track, notes[0]) : (track.def.engine === 'MetalSynth' ? 'C4' : 'C1');
-      s.triggerAttackRelease(n, '16n', time);
-      return;
-    }
-    if (track.samplers) {
-      // melodic sampler: the grid repitches the sample around C3; the ring's first
-      // step may use another sample and/or a semitone offset (the gankogui's low bell)
-      const voice = (downbeat && track.downbeatSampler) || s;
-      const semis = track.pitchSemis + (downbeat ? track.downbeatSemis || 0 : 0);
-      if (!notes.length) { voice.triggerAttackRelease(Tone.Frequency('C3').transpose(semis).toNote(), '8n', time); return; }
-      track._i = ((track._i || 0) + 1) % notes.length;
-      const midi = Tone.Frequency(noteFor(track, notes[track._i])).toMidi() - 48 + 60 + semis; // grid octave 3 -> C3
-      voice.triggerAttackRelease(Tone.Frequency(midi, 'midi').toNote(), '8n', time);
-      return;
-    }
-    if (!notes.length) return;
-    track._i = ((track._i || 0) + 1) % notes.length;
-    s.triggerAttackRelease(noteFor(track, notes[track._i]), '16n', time);
-  }
-
   function setSwing(pct) {
-    // Bipolar MPC-style swing (engine.js): 50 straight, above late, below early.
-    // Applied per event in the clock; Tone's own positive-only swing stays off.
-    Tone.getTransport().swing = 0;
-    state.swing = Math.min(SWING_MAX, Math.max(SWING_MIN, Number(pct) || NEUTRAL_SWING));
+    player.setSwing(pct);
     const sl = document.getElementById('swingControl');
     const out = document.getElementById('swingValue');
     if (sl) sl.value = state.swing;
     if (out) out.textContent = formatSwing(state.swing);
   }
-
-  // Which ring a track is on at this step of its A+B cycle, and the step within it.
-  function ringAt(t, step) {
-    const nA = t.seq.steps;
-    const nB = t.useB ? t.seqB.steps : 0;
-    const p = step % (nA + nB);
-    return p < nA ? { seq: t.seq, step: p } : { seq: t.seqB, step: p - nA };
-  }
-
-  // The transport ticks every sixteenth; each track keeps its own step counter
-  // and its own position in beats, and every step that falls inside the tick's
-  // window is scheduled at its exact time. A step is a sixteenth or, on a ring
-  // whose length is a multiple of three, a triplet eighth (engine.js stepBeats),
-  // so 12 steps fill a bar in 12/8. Swing shifts the off-beat step of each
-  // pair (sixteenths) or triplet (triplet eighths) -- see engine.js.
-  function startClock() {
-    Tone.getTransport().scheduleRepeat((time) => {
-      const tick = state.tick;
-      const beatSec = Tone.Time('4n').toSeconds();
-      const from = tick / 4, to = (tick + 1) / 4;
-      for (const id of Object.keys(state.tracks)) {
-        const t = state.tracks[id];
-        if (tick === 0 || t._pos == null) { t._pos = { step: 0, beat: 0 }; }
-        const pos = t._pos;
-        while (pos.beat < to - 1e-9) {
-          const r = ringAt(t, pos.step);
-          const dur = stepBeats(r.seq.steps);
-          let when = time + (pos.beat - from) * beatSec;
-          when += swingOffsetSeconds(r.step, state.swing, dur * beatSec, swingGroupSize(dur));
-          if (r.seq.pulses > 0 && r.seq.getStep(r.step)) trigger(t, when, r.step === 0);
-          const step = pos.step;
-          Tone.getDraw().schedule(() => paintPlayhead(id, step), when);
-          pos.step += 1;
-          pos.beat += dur;
-        }
-      }
-      state.tick += 1;
-    }, '16n');
-  }
+  const startClock = player.startClock;
 
   // ---- pattern helpers ---------------------------------------------------
-  // Render a track's A(+B) cycle exactly as playback reads it: rotation applied,
-  // a cycle shorter than the bar loops, a longer one is shown in full so the
-  // strip and the target line up on the first 16.
-  // The strip as playback reads it: the A(+B) cycle, rotation applied, looped
-  // until it fills whole bars (a 4-step kick shows four times, a 12/8 ring once,
-  // an 8+16 cycle in full). Each cell carries the beat it starts on, so bar
-  // lines land where the bars do even when triplet and sixteenth rings mix.
-  function renderBar(t) {
-    const cycle = t.seq.steps + (t.useB ? t.seqB.steps : 0);
-    const bits = [], beats = [];
-    let beat = 0;
-    for (let step = 0; cycle > 0 && (step < cycle || beat < 4 - 1e-9); step++) {
-      const r = ringAt(t, step);
-      const rotated = ((r.step - r.seq.rotation) % r.seq.steps + r.seq.steps) % r.seq.steps;
-      bits.push(r.seq.pattern && r.seq.pattern[rotated] ? 1 : 0);
-      beats.push(beat);
-      beat += stepBeats(r.seq.steps);
-    }
-    bits.beats = beats;
-    return bits;
-  }
-
   const targetBits = (target) =>
     target ? target.split('').map(c => (c === 'x' || c === '1' ? 1 : 0)) : null;
 

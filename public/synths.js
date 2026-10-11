@@ -17,10 +17,9 @@
  * wasm (faust-kick.js). 'Sampler' is a Tone.Sampler over a `kit`, with the
  * sample chosen by index from a slider. 'MonoSynth' and the rest are Tone.
  *
- * KNOWN DUPLICATION: groovebox.js still constructs its seven tracks inline and
- * does not read this file. That is deliberate for now -- the live app keeps
- * working untouched while the tuning page runs against the new roster. The
- * mobile rewrite must delete the inline copy and make this the only source.
+ * The app (index.html) and the tuning desk (tune.html) both build their voices
+ * from this roster through player.js. groovebox.js still constructs its own
+ * seven tracks inline, but it only backs legacy.html, the pre-2026-10 app.
  */
 window.SYNTH_DEFS = [
   {

@@ -2,59 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>drum-circles</title>
-  <meta name="description" content="a euclidean groovebox for the browser — scale-locked, impossible to play a wrong note">
+  <meta name="description" content="A free euclidean drum machine with a distribution knob. Pick a genre, press play, turn the pulses. Export any pattern as MIDI.">
   <meta property="og:title" content="drum-circles">
-  <meta property="og:description" content="a euclidean groovebox for the browser — scale-locked, impossible to play a wrong note">
-  <meta name="theme-color" content="#0A0A0A">
+  <meta property="og:description" content="A free euclidean drum machine with a distribution knob. Pick a genre, press play, turn the pulses.">
+  <meta property="og:url" content="https://drumcircles.rheome.tools">
+  <meta name="theme-color" content="#0a0a0a">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23050608'/%3E%3Ccircle cx='32' cy='13' r='3' fill='%2300FF88'/%3E%3Ccircle cx='45.4' cy='18.6' r='3' fill='%23545d6a'/%3E%3Ccircle cx='51' cy='32' r='3' fill='%23ece7da'/%3E%3Ccircle cx='45.4' cy='45.4' r='3' fill='%23545d6a'/%3E%3Ccircle cx='32' cy='51' r='3' fill='%23ece7da'/%3E%3Ccircle cx='18.6' cy='45.4' r='3' fill='%23545d6a'/%3E%3Ccircle cx='13' cy='32' r='3' fill='%23ece7da'/%3E%3Ccircle cx='18.6' cy='18.6' r='3' fill='%23545d6a'/%3E%3Ccircle cx='32' cy='23' r='2.5' fill='%2300D4FF'/%3E%3Ccircle cx='41' cy='32' r='2.5' fill='%23545d6a'/%3E%3Ccircle cx='32' cy='41' r='2.5' fill='%23545d6a'/%3E%3Ccircle cx='23' cy='32' r='2.5' fill='%23545d6a'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="public/styles.css">
+  <link rel="stylesheet" href="public/app.css">
 </head>
 <body>
 
-  <header class="bar">
-    <div class="bar-id">
+  <header class="top">
+    <div class="top-id">
       <span class="wordmark">drum-circles</span>
-      <span class="tagline">euclidean groovebox</span>
+      <span class="tagline">euclidean rhythm, extended</span>
     </div>
-    <a class="return-link" href="https://rheome.tools/experiments/drum-circles">&larr; rheome.tools</a>
+    <a class="top-link" href="https://rheome.tools">rheome.tools</a>
   </header>
 
-  <div class="groovebox">
-
-    <section class="transport" aria-label="transport">
-      <button id="playButton">play</button>
-      <label class="bpm">bpm
-        <input type="number" id="bpmControl" value="120" min="60" max="200">
-      </label>
-      <div class="fx-group">
-        <label>swing <input type="range" id="swingControl" min="25" max="75" step="1" value="50"><span class="value-display">straight</span></label>
-        <label>humanize <input type="range" id="humanizeControl" min="0" max="20" step="1" value="0"><span class="value-display">0ms</span></label>
+  <main>
+    <section class="home" aria-label="genre presets">
+      <div class="plate genres-plate" data-label="[genre]">
+        <div class="genres" id="genres"></div>
+        <p class="hint" id="genreHint">tap a genre to load it. tap it again for a variation.</p>
+      </div>
+      <div class="plate overview-plate" data-label="[tracks]">
+        <div class="overview" id="overview"></div>
       </div>
     </section>
 
-    <section class="fx" aria-label="effects">
-      <div class="fx-group">
-        <span class="fx-name">reverb</span>
-        <label>mix <input type="range" id="reverbMix" min="0" max="1" step="0.01" value="0.3"><span class="value-display">0.30</span></label>
-        <label>decay <input type="range" id="reverbDecay" min="0.1" max="10" step="0.1" value="4"><span class="value-display">4.00</span></label>
+    <nav class="tabs" id="tabs" aria-label="tracks"></nav>
+    <section class="deck" id="deck" aria-label="track controls"></section>
+
+    <section class="plate more" data-label="[more]">
+      <div class="more-row">
+        <label class="field">key
+          <select id="rootSelect"></select>
+        </label>
+        <label class="field">scale
+          <select id="scaleSelect"></select>
+        </label>
+        <button type="button" class="btn" id="midiButton">export midi</button>
       </div>
-      <div class="fx-group">
-        <span class="fx-name">delay</span>
-        <label>mix <input type="range" id="delayMix" min="0" max="1" step="0.01" value="0.3"><span class="value-display">0.30</span></label>
-        <label>time <input type="range" id="delayTime" min="0" max="1" step="0.01" value="0.5"><span class="value-display">0.50</span></label>
-        <button id="delaySyncToggle" class="toggle-btn" title="sync to tempo">sync</button>
-        <label>feedback <input type="range" id="delayFeedback" min="0" max="0.9" step="0.01" value="0.4"><span class="value-display">0.40</span></label>
-      </div>
+      <p class="about">
+        Every track is a euclidean rhythm: <b>pulses</b> spread as evenly as possible across
+        <b>steps</b>, turned by <b>rotation</b>. <b>Distribution</b> is the extension: it slides
+        the pulses toward the front or the back of the bar, which reaches grooves a plain
+        euclidean sequencer can't, like the tresillo under reggaeton and dancehall.
+        Made by <a href="https://rheome.tools">Rheome</a>.
+      </p>
     </section>
+  </main>
 
-    <div class="tracks"></div>
-
-  </div>
+  <footer class="transport" aria-label="transport">
+    <button type="button" class="play" id="playButton" aria-label="play">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path class="icon-play" d="M7 4.5v15l13-7.5z"/><path class="icon-stop" d="M6 6h12v12H6z"/></svg>
+    </button>
+    <div class="now">
+      <span class="now-genre" id="nowGenre">—</span>
+      <span class="now-status" id="nowStatus">loading sounds…</span>
+    </div>
+    <div class="transport-knobs" id="transportKnobs"></div>
+  </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
   <script src="public/engine.js"></script>
-  <script src="public/groovebox.js"></script>
+  <script src="public/faust-kick.js"></script>
+  <script src="public/synths.js"></script>
+  <script src="public/presets.js"></script>
+  <script src="public/player.js"></script>
+  <script src="public/midi.js"></script>
+  <script src="public/app.js"></script>
 </body>
 </html>
